@@ -11,12 +11,18 @@ const phaseOf = (w:number) =>
           {l:"Mastery",    c:"#34d399"};
 
 const card = { background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14 };
-const btn  = (primary?:boolean): React.CSSProperties => ({
-  padding:"11px 20px", borderRadius:11, border:"none", cursor:"pointer", fontSize:13, fontWeight:700,
-  background: primary ? "linear-gradient(135deg,#4f8ef7,#a78bfa)" : "var(--surface2)",
+const btn = (primary?:boolean): React.CSSProperties => ({
+  padding:"11px 20px",
+  borderRadius:11,
+  cursor:"pointer",
+
+  background: primary
+    ? "linear-gradient(135deg,#4f8ef7,#a78bfa)"
+    : "var(--surface)",
+
   color: primary ? "#fff" : "var(--muted)",
   border: primary ? "none" : "1px solid var(--border)",
-  transition:"all .15s",
+  transition:"all .15s"
 });
 
 export default function LearningPage() {
