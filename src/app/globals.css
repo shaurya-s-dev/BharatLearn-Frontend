@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Dark theme (default) ── */
+:root, [data-theme="dark"] {
+  --bg:       #070c16;
+  --surface:  #0d1526;
+  --surface2: #111d33;
+  --border:   rgba(56,90,153,0.18);
+  --text:     #dde4f0;
+  --muted:    #5a7099;
+  --accent:   #4f8ef7;
+  --accent2:  #a78bfa;
+  --green:    #34d399;
+  --yellow:   #fbbf24;
+  --red:      #f87171;
+}
+
+/* ── Light theme ── */
+[data-theme="light"] {
+  --bg:       #f0f4ff;
+  --surface:  #ffffff;
+  --surface2: #e8eef8;
+  --border:   rgba(79,142,247,0.15);
+  --text:     #1a2540;
+  --muted:    #6b7fa3;
+  --accent:   #3b7de8;
+  --accent2:  #7c3aed;
+  --green:    #16a34a;
+  --yellow:   #d97706;
+  --red:      #dc2626;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: var(--bg); color: var(--text); transition: background .3s, color .3s; }
+body { font-family: "Outfit", "Segoe UI", sans-serif; }
+
+::selection { background: #4f8ef730; }
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #1e2d45; border-radius: 99px; }
+
+@keyframes fadeUp   { from{opacity:0;transform:translateY(14px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn   { from{opacity:0} to{opacity:1} }
+@keyframes spin     { to{transform:rotate(360deg)} }
+@keyframes pulse    { 0%,100%{opacity:.5} 50%{opacity:1} }
+@keyframes shimmer  { 0%{background-position:-400px 0} 100%{background-position:400px 0} }
+@keyframes blink    { 0%,100%{opacity:1} 50%{opacity:0} }
+
+.fu  { animation: fadeUp  .35s ease both; }
+.fu1 { animation: fadeUp  .35s .06s ease both; }
+.fu2 { animation: fadeUp  .35s .12s ease both; }
+.fu3 { animation: fadeUp  .35s .18s ease both; }
+.fi  { animation: fadeIn  .3s ease both; }
+
+.spin    { animation: spin   .8s linear infinite; }
+.pulse-a { animation: pulse  1.6s ease-in-out infinite; }
+.blink   { animation: blink  1.2s step-end infinite; }
+
+.shimmer {
+  background: linear-gradient(90deg, var(--surface2) 25%, #1e2d45 50%, var(--surface2) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+.glass {
+  background: rgba(13,21,38,0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.mono { font-family: "JetBrains Mono", "Fira Code", monospace; }
