@@ -69,7 +69,7 @@ export default function DebugPage() {
   const analyse = async () => {
     setApiErr(""); setResult(null); setLoad(true); setRevealed(new Set()); setTab("exp");
     try {
-      const res = await fetch("/api/debug",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,language:lang,error:errMsg}),credentials:"include"});
+      const res = await fetch("https://bharatlearn-backend.onrender.com/api/debug",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code,language:lang,error:errMsg}) });
       const d = await res.json();
       if (!d.success) throw new Error(d.error?.message||"Analysis failed");
       setResult(d.data);

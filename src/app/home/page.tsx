@@ -121,8 +121,7 @@ export default function HomePage() {
       const res = await fetch(`${API_URL}/api/chat`, {
         method: "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: input }),
-      });
+         body: JSON.stringify({ prompt: input }),      });
       if (res.status === 401) {
         setReply("⚠️ API key invalid (401). Open backend/.env and check your GROQ_API_KEY or HF_API_KEY is correct, then restart the backend.");
         return;

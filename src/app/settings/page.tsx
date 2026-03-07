@@ -16,16 +16,10 @@ function HamsterLoader({ show }: { show: boolean }) {
 }
 
 export default function SettingsPage() {
-  const [user, setUser]         = useState<User|null>(null);
-  const [saved, setSaved]       = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const [theme, setTheme]       = useState("dark");
-  const [fontSize, setFontSize] = useState("medium");
-  const [notifs, setNotifs]     = useState(true);
-  const [streak, setStreak]     = useState(true);
-
-  // Font size map → actual CSS value
-  const fontMap: Record<string,string> = { small:"13px", medium:"15px", large:"17px" };
+  const [user, setUser]       = useState<User|null>(null);
+  const [saved, setSaved]     = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [theme, setTheme]     = useState("dark");
 
   useEffect(() => {
     fetch("/auth/me",{credentials:"include"})
@@ -33,34 +27,23 @@ export default function SettingsPage() {
     const raw = localStorage.getItem("bl_prefs");
     if (raw) {
       const p = JSON.parse(raw);
-      if (p.theme)    { setTheme(p.theme);    applyTheme(p.theme); }
-      if (p.fontSize) { setFontSize(p.fontSize); applyFont(p.fontSize); }
-      if (p.notifs    !== undefined) setNotifs(p.notifs);
-      if (p.streak    !== undefined) setStreak(p.streak);
+      if (p.theme) { setTheme(p.theme); applyTheme(p.theme); }
     }
   }, []);
 
   function applyTheme(t: string) {
-    document.documentElement.setAttribute("data-theme", t === "system"
-      ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-      : t
+    document.documentElement.setAttribute("data-theme",
+      t === "system" ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light") : t
     );
   }
 
-  function applyFont(f: string) {
-    document.documentElement.style.fontSize = fontMap[f] || "15px";
-  }
-
-  // Apply immediately on change (live preview)
   useEffect(() => { applyTheme(theme); }, [theme]);
-  useEffect(() => { applyFont(fontSize); }, [fontSize]);
 
   const save = () => {
     setLoading(true);
     setTimeout(() => {
-      localStorage.setItem("bl_prefs", JSON.stringify({ theme, fontSize, notifs, streak }));
-      setLoading(false);
-      setSaved(true);
+      localStorage.setItem("bl_prefs", JSON.stringify({ theme }));
+      setLoading(false); setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     }, 1600);
   };
@@ -73,7 +56,6 @@ export default function SettingsPage() {
       <HamsterLoader show={loading}/>
       <div style={{padding:"28px 32px",background:"var(--bg)",minHeight:"100%",maxWidth:660,margin:"0 auto"}}>
 
-        {/* Header */}
         <div className="fu" style={{marginBottom:28,textAlign:"center"}}>
           <h1 style={{fontSize:26,fontWeight:900,color:"var(--text)",letterSpacing:"-.5px"}}>⚙️ Settings</h1>
           <p style={{fontSize:13,color:"var(--muted)",marginTop:5}}>Manage your account and preferences</p>
@@ -104,53 +86,20 @@ export default function SettingsPage() {
           {user && <a href="/auth/logout" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:9,border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--muted)",fontSize:12,textDecoration:"none",fontWeight:600}}>Sign out</a>}
         </div>
 
-        {/* Appearance */}
+        {/* Appearance — theme only */}
         <div className="fu1" style={card}>
           <p style={lbl}>Appearance</p>
-
-          <p style={{fontSize:12,color:"var(--muted)",marginBottom:10}}>Theme <span style={{fontSize:10,opacity:.5}}>(changes instantly)</span></p>
-          <div style={{display:"flex",gap:8,marginBottom:20}}>
-            {[["dark","🌙 Dark"],["light","☀️ Light"],["system","💻 System"]].map(([val,lbl2])=>(
-              <button key={val} onClick={()=>setTheme(val)} style={{padding:"8px 16px",borderRadius:10,cursor:"pointer",fontSize:12,fontWeight:theme===val?700:400,border:`1px solid ${theme===val?"#4f8ef740":"var(--border)"}`,background:theme===val?"#4f8ef715":"var(--surface2)",color:theme===val?"#4f8ef7":"var(--muted)"}}>
-                {lbl2}
-              </button>
-            ))}
-          </div>
-
-          <p style={{fontSize:12,color:"var(--muted)",marginBottom:10}}>Font Size <span style={{fontSize:10,opacity:.5}}>(changes instantly)</span></p>
+          <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Theme <span style={{fontSize:10,opacity:.5}}>(changes instantly)</span></p>
           <div style={{display:"flex",gap:8}}>
-            {[["small","A","13px"],["medium","A","15px"],["large","A","17px"]].map(([val,,size])=>(
-              <button key={val} onClick={()=>setFontSize(val)} style={{
-                padding:"8px 20px",borderRadius:10,cursor:"pointer",
-                fontSize: val==="small"?11:val==="medium"?14:17,
-                fontWeight:fontSize===val?700:400,
-                border:`1px solid ${fontSize===val?"#a78bfa40":"var(--border)"}`,
-                background:fontSize===val?"#a78bfa15":"var(--surface2)",
-                color:fontSize===val?"#a78bfa":"var(--muted)",
-              }}>
-                {val==="small"?"Small A":val==="medium"?"Medium A":"Large A"}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Notifications */}
-        <div className="fu2" style={card}>
-          <p style={lbl}>Notifications</p>
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            {[
-              {val:notifs,set:setNotifs,label:"Study reminders",sub:"Daily nudges to keep your streak",color:"#34d399"},
-              {val:streak,set:setStreak,label:"Streak alerts",  sub:"Warn before you break your streak", color:"#fbbf24"},
-            ].map(item=>(
-              <div key={item.label} style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                <div>
-                  <p style={{fontSize:13,fontWeight:600,color:"var(--text)"}}>{item.label}</p>
-                  <p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{item.sub}</p>
-                </div>
-                <button onClick={()=>item.set((v:boolean)=>!v)} style={{width:44,height:24,borderRadius:12,border:"none",cursor:"pointer",background:item.val?item.color:"var(--surface2)",position:"relative",transition:"background .2s",flexShrink:0}}>
-                  <span style={{position:"absolute",top:3,left:item.val?22:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left .2s",boxShadow:"0 1px 4px rgba(0,0,0,.3)"}}/>
-                </button>
-              </div>
+            {[["dark","🌙 Dark"],["light","☀️ Light"],["system","💻 System"]].map(([val,label])=>(
+              <button key={val} onClick={()=>setTheme(val)} style={{
+                padding:"10px 20px",borderRadius:10,cursor:"pointer",fontSize:13,
+                fontWeight:theme===val?700:400,
+                border:`1px solid ${theme===val?"#4f8ef740":"var(--border)"}`,
+                background:theme===val?"#4f8ef715":"var(--surface2)",
+                color:theme===val?"#4f8ef7":"var(--muted)",
+                transition:"all .15s",
+              }}>{label}</button>
             ))}
           </div>
         </div>
@@ -163,7 +112,7 @@ export default function SettingsPage() {
         </div>
 
         {/* About */}
-        <div className="fu3" style={card}>
+        <div className="fu2" style={card}>
           <p style={lbl}>About</p>
           <div style={{display:"flex",flexDirection:"column"}}>
             {[
