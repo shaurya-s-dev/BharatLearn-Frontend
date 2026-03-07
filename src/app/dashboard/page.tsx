@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { getActivity, getWeeklyActivity, getTopicMastery, get30DayStreak, getTotalMinsThisWeek, getAvgMastery } from "@/lib/activity";
 import { AuthHandler } from "@/components/AuthHandler";
@@ -19,6 +19,27 @@ const TT = ({ active, payload, label }: any) => !active ? null : (
   </div>
 );
 
+function StatCard({ label, val, sub, clr, icon, pct, flash }: any) {
+  return (
+    <div style={{
+      borderRadius:14, padding:"20px",
+      background: flash ? `${clr}10` : "var(--surface)",
+      border: `1px solid ${flash ? clr + "40" : "var(--border)"}`,
+      transition:"all .4s ease",
+    }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+        <p style={{ fontSize:9, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700 }}>{label}</p>
+        <span style={{ fontSize:18 }}>{icon}</span>
+      </div>
+      <p style={{ fontSize:30, fontWeight:900, color:clr, lineHeight:1, fontFamily:"monospace", transition:"all .3s" }}>{val}</p>
+      <p style={{ fontSize:11, color:"var(--muted)", marginTop:6 }}>{sub}</p>
+      <div style={{ height:3, background:"var(--surface2)", borderRadius:99, marginTop:12, overflow:"hidden" }}>
+        <div style={{ height:"100%", width:`${pct}%`, background:clr, borderRadius:99, transition:"width 0.6s ease" }}/>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [mounted,    setMounted]    = useState(false);
   const [user,       setUser]       = useState<any>(null);
@@ -29,66 +50,75 @@ export default function Dashboard() {
   const [streak30,   setStreak30]   = useState<number[]>([]);
   const [totalMins,  setTotalMins]  = useState(0);
   const [avgMastery, setAvgMastery] = useState(0);
+  const [flashStats, setFlashStats] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
 
   const today = new Date().toLocaleDateString("en-IN", { weekday:"long", day:"numeric", month:"long", year:"numeric" });
+
+  const loadActivity = useCallback((flash = false) => {
+    setActivity(getActivity());
+    setWeekData(getWeeklyActivity());
+    setMastery(getTopicMastery());
+    setStreak30(get30DayStreak());
+    setTotalMins(getTotalMinsThisWeek());
+    setAvgMastery(getAvgMastery());
+    if (flash) {
+      setFlashStats(true);
+      setLastUpdate(new Date().toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" }));
+      setTimeout(() => setFlashStats(false), 1500);
+    }
+  }, []);
 
   useEffect(() => {
     setMounted(true);
     setQuote(QUOTES[new Date().getDay() % QUOTES.length]);
 
-    // Load user
     const token = localStorage.getItem("bl_token");
     if (token) {
       fetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.json()).then(d => { if (d.user) setUser(d.user); }).catch(() => {});
     }
 
-    // Load local activity
-    const data = getActivity();
-    setActivity(data);
-    setWeekData(getWeeklyActivity());
-    setMastery(getTopicMastery());
-    setStreak30(get30DayStreak());
-    setTotalMins(getTotalMinsThisWeek());
-    setAvgMastery(getAvgMastery());
-  }, []);
+    loadActivity();
 
-  // Refresh every 30s in case user does something in another tab
-  useEffect(() => {
-    const t = setInterval(() => {
-      setActivity(getActivity());
-      setWeekData(getWeeklyActivity());
-      setMastery(getTopicMastery());
-      setStreak30(get30DayStreak());
-      setTotalMins(getTotalMinsThisWeek());
-      setAvgMastery(getAvgMastery());
-    }, 30000);
-    return () => clearInterval(t);
-  }, []);
+    // Updates when quiz/activity saved in another tab
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "bl_activity") loadActivity(true);
+    };
+    window.addEventListener("storage", onStorage);
 
-  const card: React.CSSProperties = {
-    borderRadius:14, padding:"20px 22px",
-    background:"var(--surface)", border:"1px solid var(--border)",
-  };
+    // Updates when quiz saved in the same tab
+    const onActivity = () => loadActivity(true);
+    window.addEventListener("bl_activity_updated", onActivity);
 
-  const topicsDone = activity ? Object.keys(activity.topicScores).length : 0;
+    // Fallback polling every 10s
+    const t = setInterval(() => loadActivity(), 10_000);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("bl_activity_updated", onActivity);
+      clearInterval(t);
+    };
+  }, [loadActivity]);
+
+  const topicsDone = activity ? Object.keys(activity.topicScores ?? {}).length : 0;
 
   const stats = [
-    { label:"Study Streak", val:`${activity?.streak ?? 0}d`,   sub: activity?.streak > 0 ? "Keep it up! 🔥" : "Start your streak today!", clr:"#fbbf24", icon:"🔥", pct: Math.min((activity?.streak ?? 0) * 10, 100) },
-    { label:"Topics Done",  val:`${topicsDone}/20`,            sub: topicsDone > 0 ? `${topicsDone} topic${topicsDone > 1 ? "s" : ""} mastered` : "Pick a topic to begin", clr:"#4f8ef7", icon:"📚", pct: (topicsDone / 20) * 100 },
-    { label:"This Week",    val:`${totalMins}m`,                sub: totalMins >= 30 ? "Great work this week! 💪" : "Study 30+ min daily",      clr:"#a78bfa", icon:"⏱",  pct: Math.min((totalMins / 210) * 100, 100) },
-    { label:"Mastery",      val:`${avgMastery}%`,               sub: avgMastery > 0 ? `Avg across ${topicsDone} topics` : "Complete quizzes to track", clr:"#34d399", icon:"🎯", pct: avgMastery },
+    { label:"Study Streak", val:`${activity?.streak ?? 0}d`,  sub: activity?.streak > 0 ? "Keep it up! 🔥" : "Start your streak today!", clr:"#fbbf24", icon:"🔥", pct: Math.min((activity?.streak ?? 0) * 10, 100) },
+    { label:"Topics Done",  val:`${topicsDone}/20`,           sub: topicsDone > 0 ? `${topicsDone} topic${topicsDone > 1 ? "s" : ""} mastered` : "Pick a topic to begin", clr:"#4f8ef7", icon:"📚", pct: (topicsDone / 20) * 100 },
+    { label:"This Week",    val:`${totalMins}m`,               sub: totalMins >= 30 ? "Great work this week! 💪" : "Study 30+ min daily", clr:"#a78bfa", icon:"⏱", pct: Math.min((totalMins / 210) * 100, 100) },
+    { label:"Mastery",      val:`${avgMastery}%`,              sub: avgMastery > 0 ? `Avg across ${topicsDone} topics` : "Complete quizzes to track", clr:"#34d399", icon:"🎯", pct: avgMastery },
   ];
 
-  // Get top 3 weakest topics for suggestions
   const weakTopics = mastery.filter(m => m.pct > 0 && m.pct < 70).sort((a,b) => a.pct - b.pct).slice(0, 3);
-
   const getStartedItems = [
     { icon:"◈", label:"Take your first quiz",     href:"/quiz",     clr:"#34d399", done: topicsDone > 0 },
     { icon:"⊞", label:"Build your learning plan", href:"/learning", clr:"#a78bfa", done: false },
     { icon:"⊙", label:"Debug some code",           href:"/debug",    clr:"#f87171", done: false },
     { icon:"◉", label:"Try a viva session",        href:"/viva",     clr:"#fbbf24", done: false },
   ];
+
+  const card: React.CSSProperties = { borderRadius:14, padding:"20px 22px", background:"var(--surface)", border:"1px solid var(--border)" };
 
   return (
     <div style={{ padding:"28px 32px", background:"var(--bg)", minHeight:"100%" }}>
@@ -102,21 +132,24 @@ export default function Dashboard() {
           </h1>
           <p style={{ fontSize:13, color:"var(--muted)", marginTop:4 }}>{today}</p>
         </div>
-        {user && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={user.avatar} alt="" width={42} height={42}
-            style={{ borderRadius:"50%", border:"2px solid rgba(79,142,247,.4)", boxShadow:"0 0 16px #4f8ef730" }} />
-        )}
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          {lastUpdate && (
+            <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 12px", borderRadius:20, background:"#34d39915", border:"1px solid #34d39930" }}>
+              <span style={{ width:6, height:6, borderRadius:"50%", background:"#34d399", display:"inline-block" }}/>
+              <span style={{ fontSize:10, color:"#34d399", fontWeight:600 }}>Updated {lastUpdate}</span>
+            </div>
+          )}
+          {user && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={user.avatar} alt="" width={42} height={42}
+              style={{ borderRadius:"50%", border:"2px solid rgba(79,142,247,.4)", boxShadow:"0 0 16px #4f8ef730" }} />
+          )}
+        </div>
       </div>
 
       {/* Quote */}
       {quote && (
-        <div style={{
-          marginBottom:20, padding:"12px 16px",
-          background:"linear-gradient(135deg,rgba(79,142,247,.08),rgba(167,139,250,.08))",
-          border:"1px solid rgba(79,142,247,.15)", borderRadius:12,
-          display:"flex", alignItems:"center", gap:10,
-        }}>
+        <div style={{ marginBottom:20, padding:"12px 16px", background:"linear-gradient(135deg,rgba(79,142,247,.08),rgba(167,139,250,.08))", border:"1px solid rgba(79,142,247,.15)", borderRadius:12, display:"flex", alignItems:"center", gap:10 }}>
           <span style={{ fontSize:18 }}>✨</span>
           <p style={{ fontSize:13, color:"var(--muted)", fontStyle:"italic" }}>{quote}</p>
         </div>
@@ -124,19 +157,7 @@ export default function Dashboard() {
 
       {/* Stats */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:14, marginBottom:22 }}>
-        {stats.map(s => (
-          <div key={s.label} style={{ ...card, padding:"20px" }}>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <p style={{ fontSize:9, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700 }}>{s.label}</p>
-              <span style={{ fontSize:18 }}>{s.icon}</span>
-            </div>
-            <p style={{ fontSize:30, fontWeight:900, color:s.clr, lineHeight:1, fontFamily:"monospace" }}>{s.val}</p>
-            <p style={{ fontSize:11, color:"var(--muted)", marginTop:6 }}>{s.sub}</p>
-            <div style={{ height:3, background:"var(--surface2)", borderRadius:99, marginTop:12, overflow:"hidden" }}>
-              <div style={{ height:"100%", width:`${s.pct}%`, background:s.clr, borderRadius:99, transition:"width 0.5s ease" }}/>
-            </div>
-          </div>
-        ))}
+        {stats.map(s => <StatCard key={s.label} {...s} flash={flashStats} />)}
       </div>
 
       {/* Charts */}
@@ -175,25 +196,17 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Streak + Weak Areas / Get Started */}
+      {/* Streak + Weak/Get Started */}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16, marginBottom:18 }}>
         <div style={card}>
           <p style={{ fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🔥 30-Day Streak</p>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(10,1fr)", gap:5, marginBottom:14 }}>
             {streak30.map((active, i) => (
-              <div key={i} style={{
-                height:24, borderRadius:6,
-                background: active ? "#fbbf24" : "var(--surface2)",
-                border:`1px solid ${active ? "#fbbf2440" : "var(--border)"}`,
-                boxShadow: active ? "0 0 8px #fbbf2430" : "none",
-                transition:"all .2s"
-              }}/>
+              <div key={i} style={{ height:24, borderRadius:6, background: active ? "#fbbf24" : "var(--surface2)", border:`1px solid ${active ? "#fbbf2440" : "var(--border)"}`, boxShadow: active ? "0 0 8px #fbbf2430" : "none", transition:"all .3s" }}/>
             ))}
           </div>
           <p style={{ fontSize:11, color:"var(--muted)" }}>
-            {activity?.streak > 0
-              ? `🔥 ${activity.streak}-day streak! Keep going!`
-              : "✨ Study today to start your streak!"}
+            {activity?.streak > 0 ? `🔥 ${activity.streak}-day streak! Keep going!` : "✨ Study today to start your streak!"}
           </p>
         </div>
 
@@ -203,18 +216,14 @@ export default function Dashboard() {
               <p style={{ fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:14 }}>⚠️ Topics to Improve</p>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {weakTopics.map(t => (
-                  <a key={t.name} href="/quiz" style={{
-                    display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
-                    borderRadius:10, textDecoration:"none",
-                    background:"rgba(248,113,113,0.06)", border:"1px solid rgba(248,113,113,0.15)",
-                  }}>
+                  <a key={t.name} href="/quiz" style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, textDecoration:"none", background:"rgba(248,113,113,0.06)", border:"1px solid rgba(248,113,113,0.15)" }}>
                     <div style={{ flex:1 }}>
                       <div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}>
                         <span style={{ fontSize:12, fontWeight:600, color:"var(--text)" }}>{t.name}</span>
                         <span style={{ fontSize:11, color:"#f87171", fontFamily:"monospace" }}>{t.pct}%</span>
                       </div>
                       <div style={{ height:4, background:"var(--surface2)", borderRadius:99 }}>
-                        <div style={{ height:"100%", width:`${t.pct}%`, background:"#f87171", borderRadius:99 }}/>
+                        <div style={{ height:"100%", width:`${t.pct}%`, background:"#f87171", borderRadius:99, transition:"width .6s ease" }}/>
                       </div>
                     </div>
                     <span style={{ color:"#f87171", fontSize:12 }}>→</span>
@@ -227,16 +236,9 @@ export default function Dashboard() {
               <p style={{ fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:14 }}>🚀 Get Started</p>
               <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
                 {getStartedItems.map(a => (
-                  <a key={a.href} href={a.href} style={{
-                    display:"flex", alignItems:"center", gap:10, padding:"10px 12px",
-                    borderRadius:10, textDecoration:"none",
-                    background:`${a.clr}10`, border:`1px solid ${a.clr}20`,
-                    opacity: a.done ? 0.5 : 1,
-                  }}>
+                  <a key={a.href} href={a.href} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:10, textDecoration:"none", background:`${a.clr}10`, border:`1px solid ${a.clr}20`, opacity: a.done ? 0.5 : 1 }}>
                     <span style={{ color:a.clr, fontSize:16 }}>{a.icon}</span>
-                    <span style={{ fontSize:12, fontWeight:600, color:"var(--text)", flex:1 }}>
-                      {a.done ? "✓ " : ""}{a.label}
-                    </span>
+                    <span style={{ fontSize:12, fontWeight:600, color:"var(--text)", flex:1 }}>{a.done ? "✓ " : ""}{a.label}</span>
                     <span style={{ color:a.clr, fontSize:12 }}>→</span>
                   </a>
                 ))}
@@ -256,12 +258,7 @@ export default function Dashboard() {
             { label:"Learning Plan",  href:"/learning", clr:"#a78bfa", icon:"⊞" },
             { label:"Viva Practice",  href:"/viva",     clr:"#fbbf24", icon:"◉" },
           ].map(a => (
-            <a key={a.href} href={a.href} style={{
-              display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-              padding:"16px 12px", borderRadius:12, textDecoration:"none",
-              background:`${a.clr}10`, border:`1px solid ${a.clr}25`,
-              transition:"all .15s",
-            }}>
+            <a key={a.href} href={a.href} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:8, padding:"16px 12px", borderRadius:12, textDecoration:"none", background:`${a.clr}10`, border:`1px solid ${a.clr}25`, transition:"all .15s" }}>
               <span style={{ fontSize:22, color:a.clr }}>{a.icon}</span>
               <span style={{ fontSize:11, fontWeight:600, color:"var(--text)", textAlign:"center" }}>{a.label}</span>
             </a>

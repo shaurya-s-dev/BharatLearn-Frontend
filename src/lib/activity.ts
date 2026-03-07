@@ -29,7 +29,10 @@ export function getActivity(): ActivityData {
 }
 
 export function saveActivity(data: ActivityData) {
-  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+  try {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    window.dispatchEvent(new Event("bl_activity_updated"));
+  } catch {}
 }
 
 // Call when user does anything (quiz, debug, viva)
