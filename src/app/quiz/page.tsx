@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { recordQuizResult, recordStudySession } from "@/lib/activity";
 
 interface Q { id:number; type:"MCQ"|"ShortAnswer"|"Coding"; question:string; difficulty:string; marks:number; options:string[]|null; correctAnswer:string; explanation:string; hint:string; }
 interface Quiz { topic:string; language:string; difficulty:string; totalMarks:number; questions:Q[]; }
@@ -105,6 +106,7 @@ export default function QuizPage() {
       const d = await r.json();
       if (!d.success) throw new Error(d.error?.message||"Failed");
       setQuiz(d.data.quiz);
+      recordStudySession();
     } catch(e:unknown) { setErr(e instanceof Error?e.message:"Error"); }
     finally { setLoad(false); }
   };
@@ -204,7 +206,7 @@ export default function QuizPage() {
                     <p style={{fontSize:11,color:"var(--muted)",marginTop:2}}>{correct===mcqs.length?"🏆 Perfect!":correct>=mcqs.length*.7?"👍 Great job!":"📖 Keep practising"}</p>
                   </div>
                 ) : <p style={{fontSize:13,color:"var(--muted)"}}>All MCQs answered — ready to see your score?</p>}
-                {!scored && <button onClick={()=>setScored(true)} style={{marginLeft:"auto",padding:"6px 16px",borderRadius:9,border:"1px solid #a78bfa 35",background:"#a78bfa 15",color:"#a78bfa",fontSize:12,fontWeight:700,cursor:"pointer"}}>Show Score</button>}
+                {!scored && <button onClick={()=>{ setScored(true); recordQuizResult(topic, correct, mcqs.length); }} style={{marginLeft:"auto",padding:"6px 16px",borderRadius:9,border:"1px solid #a78bfa 35",background:"#a78bfa 15",color:"#a78bfa",fontSize:12,fontWeight:700,cursor:"pointer"}}>Show Score</button>}
               </div>
             )}
           </div>
