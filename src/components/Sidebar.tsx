@@ -34,7 +34,9 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
-    fetch("/auth/me", { credentials: "include" })
+    const token = localStorage.getItem("bl_token");
+    if (!token) return;
+    fetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.json()).then(d => d.user && setUser(d.user)).catch(() => {});
   }, []);
 
@@ -128,7 +130,7 @@ export default function Sidebar() {
             {!collapsed && (
               <div style={{ minWidth:0,flex:1 }}>
                 <div style={{ fontSize:12,fontWeight:600,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap" }}>{user.name}</div>
-                <a href="/auth/logout" style={{ fontSize:10,color:"rgba(255,255,255,.3)",textDecoration:"none" }}>Sign out</a>
+                <a href="#" onClick={e=>{e.preventDefault();localStorage.removeItem("bl_token");setUser(null);}} style={{ fontSize:10,color:"rgba(255,255,255,.3)",textDecoration:"none" }}>Sign out</a>
               </div>
             )}
           </div>

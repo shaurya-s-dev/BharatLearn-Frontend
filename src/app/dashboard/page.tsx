@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { getActivity, getWeeklyActivity, getTopicMastery, get30DayStreak, getTotalMinsThisWeek, getAvgMastery } from "@/lib/activity";
+import { AuthHandler } from "@/components/AuthHandler";
 
 const QUOTES = [
   "The expert in anything was once a beginner. 🌱",
@@ -36,8 +37,11 @@ export default function Dashboard() {
     setQuote(QUOTES[new Date().getDay() % QUOTES.length]);
 
     // Load user
-    fetch("/auth/me", { credentials:"include" })
-      .then(r => r.json()).then(d => { if (d.user) setUser(d.user); }).catch(() => {});
+    const token = localStorage.getItem("bl_token");
+    if (token) {
+      fetch("/auth/me", { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json()).then(d => { if (d.user) setUser(d.user); }).catch(() => {});
+    }
 
     // Load local activity
     const data = getActivity();
@@ -88,6 +92,7 @@ export default function Dashboard() {
 
   return (
     <div style={{ padding:"28px 32px", background:"var(--bg)", minHeight:"100%" }}>
+      <AuthHandler />
 
       {/* Header */}
       <div style={{ marginBottom:20, display:"flex", alignItems:"flex-start", justifyContent:"space-between", flexWrap:"wrap", gap:12 }}>
