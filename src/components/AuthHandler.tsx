@@ -11,7 +11,7 @@ function TokenReader() {
       localStorage.setItem("bl_token", token);
       const url = new URL(window.location.href);
       url.searchParams.delete("token");
-      window.history.replaceState({}, "", url.toString());
+      window.location.replace(url.toString()); // reload without token in URL
     }
   }, [params]);
 
