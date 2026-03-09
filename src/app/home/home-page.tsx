@@ -1,6 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+import { fadeUp, stagger } from "@/lib/motion";
 
 const SUGGESTIONS = [
   { icon: "◈", label: "Generate a Quiz", sub: "on Arrays in Python",  href: "/quiz",     color: "#34d399" },
@@ -17,37 +19,32 @@ const PHRASES = [
   "Prepare for your viva exam...",
 ];
 
-// All Indian languages with their Google Translate codes
 const LANGS = [
-  { code: "en",    label: "English",    native: "English"   },
-  { code: "hi",    label: "Hindi",      native: "हिंदी"      },
-  { code: "ta",    label: "Tamil",      native: "தமிழ்"      },
-  { code: "te",    label: "Telugu",     native: "తెలుగు"     },
-  { code: "bn",    label: "Bengali",    native: "বাংলা"      },
-  { code: "mr",    label: "Marathi",    native: "मराठी"      },
-  { code: "gu",    label: "Gujarati",   native: "ગુજરાતી"    },
-  { code: "kn",    label: "Kannada",    native: "ಕನ್ನಡ"      },
-  { code: "ml",    label: "Malayalam",  native: "മലയാളം"     },
-  { code: "pa",    label: "Punjabi",    native: "ਪੰਜਾਬੀ"     },
+  { code: "en", label: "English", native: "English" },
+  { code: "hi", label: "Hindi", native: "\u0939\u093F\u0902\u0926\u0940" },
+  { code: "ta", label: "Tamil", native: "\u0BA4\u0BAE\u0BBF\u0BB4\u0BCD" },
+  { code: "te", label: "Telugu", native: "\u0C24\u0C46\u0C32\u0C41\u0C17\u0C41" },
+  { code: "bn", label: "Bengali", native: "\u09AC\u09BE\u0982\u09B2\u09BE" },
+  { code: "mr", label: "Marathi", native: "\u092E\u0930\u093E\u0920\u0940" },
+  { code: "gu", label: "Gujarati", native: "\u0A97\u0AC1\u0A9C\u0AB0\u0ABE\u0AA4\u0AC0" },
+  { code: "kn", label: "Kannada", native: "\u0C95\u0CA8\u0CCD\u0CA8\u0CA1" },
+  { code: "ml", label: "Malayalam", native: "\u0D2E\u0D32\u0D2F\u0D3E\u0D33\u0D02" },
+  { code: "pa", label: "Punjabi", native: "\u0A2A\u0A70\u0A1C\u0A3E\u0A2C\u0A40" },
 ];
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
 export default function HomePage() {
-  const [input, setInput]           = useState("");
-  const [loading, setLoading]       = useState(false);
-  const [reply, setReply]           = useState("");
-  const [phraseIdx, setPhraseIdx]   = useState(0);
-  const [displayed, setDisplayed]   = useState("");
-  const [deleting, setDeleting]     = useState(false);
-  const [mounted, setMounted]       = useState(false);
-  const [langOpen, setLangOpen]     = useState(false);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [reply, setReply] = useState("");
+  const [phraseIdx, setPhraseIdx] = useState(0);
+  const [displayed, setDisplayed] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [activeLang, setActiveLang] = useState("en");
-  const [gtReady, setGtReady]       = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const langRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { setMounted(true); }, []);
 
   // Close lang dropdown on outside click
   useEffect(() => {
@@ -60,14 +57,13 @@ export default function HomePage() {
 
   // Google Translate — load once
   useEffect(() => {
-    if ((window as any).__gtLoaded) { setGtReady(true); return; }
+    if ((window as any).__gtLoaded) return;
     (window as any).googleTranslateElementInit = () => {
       new (window as any).google.translate.TranslateElement(
         { pageLanguage: "en", includedLanguages: "hi,ta,te,bn,mr,gu,kn,ml,pa,en", autoDisplay: false },
-        "gt_widget"
+        "gt_widget",
       );
       (window as any).__gtLoaded = true;
-      setGtReady(true);
     };
     const s = document.createElement("script");
     s.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
@@ -75,10 +71,9 @@ export default function HomePage() {
     document.head.appendChild(s);
   }, []);
 
-  function switchLang(code: string) {
+  const switchLang = useCallback((code: string) => {
     setActiveLang(code);
     setLangOpen(false);
-    // Trigger the hidden Google Translate select
     const trySwitch = (attempts = 0) => {
       const sel = document.querySelector<HTMLSelectElement>(".goog-te-combo");
       if (sel) {
@@ -89,7 +84,7 @@ export default function HomePage() {
       }
     };
     trySwitch();
-  }
+  }, []);
 
   // Typewriter
   useEffect(() => {
@@ -113,215 +108,245 @@ export default function HomePage() {
     }
   }, [input]);
 
-  async function handleSend() {
+  const handleSend = useCallback(async () => {
     if (!input.trim() || loading) return;
     setLoading(true);
     setReply("");
     try {
       const res = await fetch(`${API_URL}/api/chat`, {
-        method: "POST", credentials: "include",
+        method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: input }),
       });
       if (res.status === 401) {
-        setReply("⚠️ API key invalid (401). Open backend/.env and check your GROQ_API_KEY or HF_API_KEY is correct, then restart the backend.");
+        setReply("\u26A0\uFE0F API key invalid. Check your backend .env configuration.");
         return;
       }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        setReply(`⚠️ Server error ${res.status}: ${err?.error?.message || "Unknown error"}`);
+        setReply(`\u26A0\uFE0F Server error ${res.status}: ${err?.error?.message || "Unknown error"}`);
         return;
       }
       const data = await res.json();
       setReply(data.data?.reply || "No reply received.");
     } catch {
-      setReply("⚠️ Cannot connect to backend. Make sure it's running:\n\ncd backend\nnpm run dev");
+      setReply("\u26A0\uFE0F Cannot connect to backend. Make sure it's running.");
     } finally {
       setLoading(false);
     }
-  }
+  }, [input, loading]);
 
-  function handleKey(e: React.KeyboardEvent) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  }
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+      }
+    },
+    [handleSend],
+  );
 
   const currentLang = LANGS.find(l => l.code === activeLang) || LANGS[0];
 
   return (
-    <div style={S.page}>
-      {/* Hidden Google Translate widget */}
-      <div id="gt_widget" style={{ position:"absolute", top:-9999, left:-9999, visibility:"hidden" }} />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#050912] relative overflow-hidden px-5 py-10">
+      {/* Hidden Google Translate */}
+      <div id="gt_widget" className="absolute -top-[9999px] -left-[9999px] invisible" />
 
-      {/* BG */}
-      <div style={S.meshBg} />
-      <div style={S.orb1} />
-      <div style={S.orb2} />
-      <div style={S.orb3} />
-      <div style={S.grid} />
+      {/* Background effects */}
+      <div className="absolute inset-0 bg-gradient-mesh pointer-events-none" />
+      <div className="absolute w-[600px] h-[600px] rounded-full -top-[200px] -left-[200px] animate-drift-1 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(79,142,247,0.25) 0%, transparent 70%)" }} />
+      <div className="absolute w-[500px] h-[500px] rounded-full -bottom-[150px] -right-[100px] animate-drift-2 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(167,139,250,0.19) 0%, transparent 70%)" }} />
+      <div className="absolute w-[350px] h-[350px] rounded-full top-1/2 left-[60%] animate-drift-3 pointer-events-none"
+        style={{ background: "radial-gradient(circle, rgba(52,211,153,0.12) 0%, transparent 70%)" }} />
+      <div className="absolute inset-0 pointer-events-none"
+        style={{ backgroundImage: "linear-gradient(rgba(79,142,247,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(79,142,247,0.04) 1px, transparent 1px)", backgroundSize: "48px 48px" }} />
 
-      {/* ── Language Picker ── */}
-      <div ref={langRef} style={S.langWrap}>
-        <button onClick={() => setLangOpen(o => !o)} style={S.langBtn}>
-          <span style={{ fontSize:15 }}>🌐</span>
-          <span style={{ fontSize:13, fontWeight:500, color:"#fff" }}>{currentLang.native}</span>
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity:.4, marginLeft:2, transform: langOpen ? "rotate(180deg)" : "none", transition:"transform .2s" }}>
-            <path d="M2 3.5L5 6.5L8 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round"/>
+      {/* Language Picker */}
+      <div ref={langRef} className="fixed top-4 right-4 z-[500]">
+        <motion.button
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setLangOpen((o) => !o)}
+          className="flex items-center gap-[7px] px-3.5 py-2 bg-white/[0.08] border border-white/[0.14] rounded-[10px] cursor-pointer text-white text-[13px] font-sans backdrop-blur-xl transition-all hover:bg-white/[0.12]"
+        >
+          <span className="text-[15px]">{"\u{1F310}"}</span>
+          <span className="text-[13px] font-medium text-white">{currentLang.native}</span>
+          <svg
+            width="10" height="10" viewBox="0 0 10 10" fill="none"
+            className="opacity-40 ml-0.5 transition-transform duration-200"
+            style={{ transform: langOpen ? "rotate(180deg)" : "none" }}
+          >
+            <path d="M2 3.5L5 6.5L8 3.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
-        </button>
+        </motion.button>
 
-        {langOpen && (
-          <div style={S.dropdown}>
-            <div style={S.dropHeader}>🌏 Select Language</div>
-            {LANGS.map(l => (
-              <button key={l.code} onClick={() => switchLang(l.code)} style={{
-                ...S.dropOption,
-                background: activeLang === l.code ? "rgba(79,142,247,.15)" : "transparent",
-                color: activeLang === l.code ? "#4f8ef7" : "rgba(255,255,255,.75)",
-              }}>
-                <span style={{ flex:1, textAlign:"left" }}>{l.native}</span>
-                <span style={{ fontSize:11, opacity:.5 }}>{l.label}</span>
-                {activeLang === l.code && <span style={{ color:"#4f8ef7", fontSize:12 }}>✓</span>}
-              </button>
-            ))}
-          </div>
-        )}
+        <AnimatePresence>
+          {langOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-[calc(100%+8px)] right-0 w-[200px] bg-[rgba(10,16,32,0.97)] border border-white/10 rounded-[14px] overflow-hidden backdrop-blur-3xl shadow-[0_16px_50px_rgba(0,0,0,0.6)] z-[600]"
+            >
+              <div className="px-3.5 py-2.5 pb-2 text-[10px] font-bold uppercase tracking-[1.5px] text-white/30 border-b border-white/[0.06]">
+                {"\u{1F30F}"} Select Language
+              </div>
+              {LANGS.map((l) => (
+                <button
+                  key={l.code}
+                  onClick={() => switchLang(l.code)}
+                  className="flex items-center gap-2 w-full px-3.5 py-2.5 border-none cursor-pointer text-[13px] font-sans transition-colors hover:bg-white/5"
+                  style={{
+                    background: activeLang === l.code ? "rgba(79,142,247,0.15)" : "transparent",
+                    color: activeLang === l.code ? "#4f8ef7" : "rgba(255,255,255,0.75)",
+                  }}
+                >
+                  <span className="flex-1 text-left">{l.native}</span>
+                  <span className="text-[11px] opacity-50">{l.label}</span>
+                  {activeLang === l.code && <span className="text-brand text-xs">{"\u2713"}</span>}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* ── Content ── */}
-      <div style={{
-        ...S.content,
-        opacity: mounted ? 1 : 0,
-        transform: mounted ? "translateY(0)" : "translateY(24px)",
-        transition: "all .65s cubic-bezier(.22,1,.36,1)",
-      }}>
+      {/* Content */}
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={stagger}
+        className="relative z-10 w-full max-w-[680px] flex flex-col items-center gap-6"
+      >
         {/* Brand */}
-        <div style={S.brand}>
-          <div style={S.brandIcon}>B</div>
+        <motion.div variants={fadeUp} className="flex items-center gap-3 mb-2">
+          <motion.div
+            whileHover={{ scale: 1.08, rotate: 3 }}
+            className="w-[42px] h-[42px] rounded-[13px] flex-shrink-0 bg-gradient-brand flex items-center justify-center font-black text-xl text-white shadow-[0_0_30px_rgba(79,142,247,0.25)]"
+          >
+            B
+          </motion.div>
           <div>
-            <div style={S.brandName}>BharatLearn</div>
-            <div style={S.brandSub}>Dev Coach · AI-Powered</div>
+            <div className="text-base font-extrabold text-white tracking-tight">BharatLearn</div>
+            <div className="text-[11px] text-white/[0.35] mt-px">Dev Coach {"\u00B7"} AI-Powered</div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Headline */}
-        <div style={{ textAlign:"center" }}>
-          <h1 style={S.h1}>
+        <motion.div variants={fadeUp} className="text-center">
+          <h1 className="text-[clamp(52px,8vw,80px)] font-black leading-[1.05] text-white tracking-[-3px]">
             Your AI<br />
-            <span className="grad-text" style={S.h1Accent}>Dev Coach.</span>
+            <span className="grad-text">Dev Coach.</span>
           </h1>
-          <p style={S.sub}>Learn faster. Debug smarter. Ace your viva.</p>
-        </div>
+          <p className="text-base text-white/[0.45] mt-3 tracking-wide">
+            Learn faster. Debug smarter. Ace your viva.
+          </p>
+        </motion.div>
 
         {/* Input */}
-        <div style={S.inputCard}>
+        <motion.div
+          variants={fadeUp}
+          className="w-full bg-white/5 backdrop-blur-2xl border border-white/10 rounded-3xl p-4 pb-3 shadow-[0_8px_40px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)] transition-[border-color,box-shadow] duration-300 focus-within:border-brand/30 focus-within:shadow-glow-lg"
+        >
           <textarea
             ref={textareaRef}
             value={input}
-            onChange={e => setInput(e.target.value)}
+            onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder={input ? "" : displayed + "▎"}
+            placeholder={input ? "" : displayed + "\u258E"}
             rows={1}
-            style={S.textarea}
+            className="w-full bg-transparent border-none outline-none text-white text-base font-sans resize-none leading-relaxed min-h-[28px] placeholder:text-white/20"
+            style={{ caretColor: "#4f8ef7" }}
           />
-          <div style={S.inputFooter}>
-            <span style={S.hint}>⏎ Enter to send  ·  Shift+⏎ new line</span>
-            <button onClick={handleSend} disabled={!input.trim() || loading} style={{
-              ...S.sendBtn,
-              opacity: input.trim() && !loading ? 1 : 0.4,
-              cursor: input.trim() && !loading ? "pointer" : "default",
-            }}>
-              {loading
-                ? <span style={{ display:"inline-block", animation:"spin .7s linear infinite" }}>⟳</span>
-                : "↑"}
-            </button>
+          <div className="flex items-center justify-between mt-2.5">
+            <span className="text-[11px] text-white/[0.22]">{"\u23CE"} Enter to send {"\u00B7"} Shift+{"\u23CE"} new line</span>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleSend}
+              disabled={!input.trim() || loading}
+              className="w-9 h-9 rounded-[10px] bg-gradient-brand border-none text-white text-lg font-bold flex items-center justify-center shadow-glow transition-opacity disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {loading ? <span className="spinner w-4 h-4" /> : "\u2191"}
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
 
         {/* Reply */}
+        <AnimatePresence mode="wait">
+          {reply && (
+            <motion.div
+              key="reply"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="w-full bg-brand/[0.07] border border-brand/[0.18] rounded-2xl px-[18px] py-4"
+            >
+              <div className="flex items-center gap-2 mb-2.5">
+                <span className="w-2 h-2 rounded-full bg-brand inline-block shadow-[0_0_8px_#4f8ef7]" />
+                <span className="text-[11px] font-bold text-brand tracking-wider uppercase">ASTRA</span>
+              </div>
+              <p className="text-sm text-white/[0.85] leading-7 whitespace-pre-wrap">{reply}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Suggestion chips */}
+        <AnimatePresence mode="wait">
+          {!reply && (
+            <motion.div
+              key="chips"
+              variants={stagger}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full"
+            >
+              {SUGGESTIONS.map((s, i) => (
+                <motion.div key={s.href} variants={fadeUp} custom={i}>
+                  <Link
+                    href={s.href}
+                    className="flex items-center gap-3 px-4 py-3.5 bg-white/[0.04] border border-white/[0.08] rounded-[14px] no-underline transition-all duration-200 hover:-translate-y-0.5 hover:border-white/[0.15] hover:bg-white/[0.06] group"
+                  >
+                    <span
+                      className="text-[22px] flex-shrink-0 transition-transform duration-300 group-hover:scale-110"
+                      style={{ color: s.color }}
+                    >
+                      {s.icon}
+                    </span>
+                    <div>
+                      <div className="text-[13px] font-semibold text-white mb-0.5">{s.label}</div>
+                      <div className="text-[11px] text-white/[0.35]">{s.sub}</div>
+                    </div>
+                    <span
+                      className="ml-auto text-base flex-shrink-0 transition-transform duration-200 group-hover:translate-x-1"
+                      style={{ color: s.color }}
+                    >
+                      {"\u2192"}
+                    </span>
+                  </Link>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {reply && (
-          <div style={S.replyCard}>
-            <div style={S.replyHead}>
-              <span style={S.dot} /><span style={S.astra}>ASTRA</span>
-            </div>
-            <p style={S.replyText}>{reply}</p>
-          </div>
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            onClick={() => { setReply(""); setInput(""); }}
+            className="bg-transparent border border-white/[0.12] text-white/40 text-[13px] px-[22px] py-2.5 rounded-xl cursor-pointer font-sans transition-all font-medium hover:border-white/25 hover:text-white/60"
+          >
+            {"\u2190"} New conversation
+          </motion.button>
         )}
-
-        {/* Chips */}
-        {!reply && (
-          <div className="chips-grid" style={S.chips}>
-            {SUGGESTIONS.map((s,i) => (
-              <Link key={s.href} href={s.href} className="card-hover" style={{...S.chip, animation:`fadeUp .4s ${i*0.07}s cubic-bezier(.22,1,.36,1) both`}}>
-                <span style={{ fontSize:22, color:s.color, flexShrink:0, transition:"transform .3s", display:"inline-block" }}>{s.icon}</span>
-                <div>
-                  <div style={S.chipLabel}>{s.label}</div>
-                  <div style={S.chipSub}>{s.sub}</div>
-                </div>
-                <span style={{ marginLeft:"auto", color:s.color, fontSize:16, flexShrink:0, transition:"transform .2s" }}>→</span>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {reply && (
-          <button onClick={() => { setReply(""); setInput(""); }} style={S.clearBtn}>
-            ← New conversation
-          </button>
-        )}
-      </div>
-
-      <style>{`
-        @keyframes spin   { to{transform:rotate(360deg)} }
-        @keyframes drift1 { 0%,100%{transform:translate(0,0)scale(1)}50%{transform:translate(60px,-40px)scale(1.15)} }
-        @keyframes drift2 { 0%,100%{transform:translate(0,0)scale(1)}50%{transform:translate(-50px,50px)scale(1.1)} }
-        @keyframes drift3 { 0%,100%{transform:translate(0,0)scale(1)}50%{transform:translate(30px,60px)scale(1.08)} }
-        .goog-te-banner-frame,.skiptranslate{display:none!important}
-        body{top:0!important}
-        #gt_widget{display:none}
-      `}</style>
+      </motion.div>
     </div>
   );
 }
-
-const S: Record<string, React.CSSProperties> = {
-  page:   { minHeight:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#050912", position:"relative", overflow:"hidden", padding:"40px 20px" },
-  meshBg: { position:"absolute", inset:0, background:"radial-gradient(ellipse 80% 60% at 50% 0%,#0d1f4a 0%,transparent 70%),radial-gradient(ellipse 60% 50% at 80% 80%,#1a0a2e 0%,transparent 60%),#050912", pointerEvents:"none" },
-  orb1:   { position:"absolute", width:600, height:600, borderRadius:"50%", background:"radial-gradient(circle,#4f8ef740 0%,transparent 70%)", top:-200, left:-200, animation:"drift1 12s ease-in-out infinite", pointerEvents:"none" },
-  orb2:   { position:"absolute", width:500, height:500, borderRadius:"50%", background:"radial-gradient(circle,#a78bfa30 0%,transparent 70%)", bottom:-150, right:-100, animation:"drift2 15s ease-in-out infinite", pointerEvents:"none" },
-  orb3:   { position:"absolute", width:350, height:350, borderRadius:"50%", background:"radial-gradient(circle,#34d39920 0%,transparent 70%)", top:"50%", left:"60%", animation:"drift3 10s ease-in-out infinite", pointerEvents:"none" },
-  grid:   { position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(79,142,247,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,247,.04) 1px,transparent 1px)", backgroundSize:"48px 48px", pointerEvents:"none" },
-
-  langWrap:   { position:"fixed", top:16, right:16, zIndex:500 },
-  langBtn:    { display:"flex", alignItems:"center", gap:7, padding:"8px 14px", background:"rgba(255,255,255,.08)", border:"1px solid rgba(255,255,255,.14)", borderRadius:10, cursor:"pointer", color:"#fff", fontSize:13, fontFamily:"inherit", backdropFilter:"blur(16px)", transition:"all .15s" },
-  dropdown:   { position:"absolute", top:"calc(100% + 8px)", right:0, width:200, background:"rgba(10,16,32,.97)", border:"1px solid rgba(255,255,255,.1)", borderRadius:14, overflow:"hidden", backdropFilter:"blur(24px)", boxShadow:"0 16px 50px rgba(0,0,0,.6)", zIndex:600 },
-  dropHeader: { padding:"10px 14px 8px", fontSize:10, fontWeight:700, textTransform:"uppercase" as const, letterSpacing:1.5, color:"rgba(255,255,255,.3)", borderBottom:"1px solid rgba(255,255,255,.06)" },
-  dropOption: { display:"flex", alignItems:"center", gap:8, width:"100%", padding:"10px 14px", border:"none", cursor:"pointer", fontSize:13, fontFamily:"inherit", transition:"background .12s" },
-
-  content:   { position:"relative", zIndex:10, width:"100%", maxWidth:680, display:"flex", flexDirection:"column", alignItems:"center", gap:24 },
-  brand:     { display:"flex", alignItems:"center", gap:12, marginBottom:8 },
-  brandIcon: { width:42, height:42, borderRadius:13, flexShrink:0, background:"linear-gradient(135deg,#4f8ef7,#a78bfa)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:20, color:"#fff", boxShadow:"0 0 30px #4f8ef740" },
-  brandName: { fontSize:16, fontWeight:800, color:"#fff", letterSpacing:"-.3px" },
-  brandSub:  { fontSize:11, color:"rgba(255,255,255,.35)", marginTop:1 },
-
-  h1:       { fontSize:"clamp(52px,8vw,80px)", fontWeight:900, lineHeight:1.05, color:"#fff", letterSpacing:"-3px", margin:0 },
-  h1Accent: { background:"linear-gradient(135deg,#4f8ef7,#a78bfa,#34d399)", WebkitBackgroundClip:"text", WebkitTextFillColor:"transparent", backgroundClip:"text" },
-  sub:      { fontSize:16, color:"rgba(255,255,255,.45)", marginTop:12, letterSpacing:".2px" },
-
-  inputCard:   { width:"100%", background:"rgba(255,255,255,.05)", backdropFilter:"blur(20px)", border:"1px solid rgba(255,255,255,.10)", borderRadius:20, padding:"16px 16px 12px", boxShadow:"0 8px 40px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.06)", transition:"border-color .3s, box-shadow .3s" },
-  textarea:    { width:"100%", background:"transparent", border:"none", outline:"none", color:"#fff", fontSize:16, fontFamily:"inherit", resize:"none", lineHeight:1.6, minHeight:28, caretColor:"#4f8ef7" },
-  inputFooter: { display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10 },
-  hint:        { fontSize:11, color:"rgba(255,255,255,.22)" },
-  sendBtn:     { width:36, height:36, borderRadius:10, background:"linear-gradient(135deg,#4f8ef7,#a78bfa)", border:"none", color:"#fff", fontSize:18, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 4px 14px #4f8ef740", transition:"opacity .2s" },
-
-  replyCard: { width:"100%", background:"rgba(79,142,247,.07)", border:"1px solid rgba(79,142,247,.18)", borderRadius:16, padding:"16px 18px" },
-  replyHead: { display:"flex", alignItems:"center", gap:8, marginBottom:10 },
-  dot:       { width:8, height:8, borderRadius:"50%", background:"#4f8ef7", boxShadow:"0 0 8px #4f8ef7", display:"inline-block" },
-  astra:     { fontSize:11, fontWeight:700, color:"#4f8ef7", letterSpacing:1, textTransform:"uppercase" as const },
-  replyText: { fontSize:14, color:"rgba(255,255,255,.85)", lineHeight:1.75, whiteSpace:"pre-wrap" as const },
-
-  chips:     { display:"grid", gridTemplateColumns:"repeat(2,1fr)", gap:10, width:"100%" },
-  chip:      { display:"flex", alignItems:"center", gap:12, padding:"14px 16px", background:"rgba(255,255,255,.04)", border:"1px solid rgba(255,255,255,.08)", borderRadius:14, textDecoration:"none", transition:"all .2s" },
-  chipLabel: { fontSize:13, fontWeight:600, color:"#fff", marginBottom:2 },
-  chipSub:   { fontSize:11, color:"rgba(255,255,255,.35)" },
-  clearBtn:  { background:"none", border:"1px solid rgba(255,255,255,.12)", color:"rgba(255,255,255,.4)", fontSize:13, padding:"10px 22px", borderRadius:12, cursor:"pointer", fontFamily:"inherit", transition:"all .2s", fontWeight:500 },
-};

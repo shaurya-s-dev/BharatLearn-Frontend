@@ -1,5 +1,7 @@
-"use client";
+﻿"use client";
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { fadeUp, stagger } from "@/lib/motion";
 
 interface Result {
   hasError: boolean;
@@ -8,56 +10,33 @@ interface Result {
   commonMistake: string; furtherReading: string;
 }
 
-const SAMPLES: Record<string,{code:string;err:string}> = {
+const SAMPLES: Record<string, { code: string; err: string }> = {
   python: {
-    code: `def calculate_average(numbers):
-    total = 0
-    for i in range(len(numbers)):
-        total += numbers[i]
-    return total / len(numbers)
-
-scores = [85, 92, 78, 95, 88]
-print(f"Average: {calculate_avarage(scores)}")`,
+    code: "def calculate_average(numbers):\n    total = 0\n    for i in range(len(numbers)):\n        total += numbers[i]\n    return total / len(numbers)\n\nscores = [85, 92, 78, 95, 88]\nprint(f\"Average: {calculate_avarage(scores)}\")",
     err: "NameError: name 'calculate_avarage' is not defined",
   },
   javascript: {
-    code: `function findMax(arr) {
-  let max = 0;
-  for (let i = 0; i <= arr.length; i++) {
-    if (arr[i] > max) max = arr[i];
-  }
-  return max;
-}
-console.log(findMax([3, 7, 2, 9, 1]));`,
+    code: "function findMax(arr) {\n  let max = 0;\n  for (let i = 0; i <= arr.length; i++) {\n    if (arr[i] > max) max = arr[i];\n  }\n  return max;\n}\nconsole.log(findMax([3, 7, 2, 9, 1]));",
     err: "TypeError: Cannot read properties of undefined",
   },
   java: {
-    code: `public class Main {
-  public static void main(String[] args) {
-    int[] nums = {10, 20, 30, 40, 50};
-    int sum = 0;
-    for (int i = 0; i <= nums.length; i++) {
-      sum += nums[i];
-    }
-    System.out.println("Sum: " + sum);
-  }
-}`,
+    code: "public class Main {\n  public static void main(String[] args) {\n    int[] nums = {10, 20, 30, 40, 50};\n    int sum = 0;\n    for (int i = 0; i <= nums.length; i++) {\n      sum += nums[i];\n    }\n    System.out.println(\"Sum: \" + sum);\n  }\n}",
     err: "ArrayIndexOutOfBoundsException: Index 5 out of bounds",
   },
 };
 
-const LANGS = ["python","javascript","typescript","java","cpp","c","go"];
-const dStyle: Record<string,string> = { Easy:"#34d399", Medium:"#fbbf24", Hard:"#f87171" };
+const LANGS = ["python", "javascript", "typescript", "java", "cpp", "c", "go"];
+const dStyle: Record<string, string> = { Easy: "#34d399", Medium: "#fbbf24", Hard: "#f87171" };
 
 export default function DebugPage() {
-  const [lang,     setLang]     = useState("python");
-  const [code,     setCode]     = useState("");
-  const [errMsg,   setErrMsg]   = useState("");
-  const [loading,  setLoad]     = useState(false);
-  const [result,   setResult]   = useState<Result|null>(null);
-  const [apiErr,   setApiErr]   = useState("");
+  const [lang, setLang] = useState("python");
+  const [code, setCode] = useState("");
+  const [errMsg, setErrMsg] = useState("");
+  const [loading, setLoad] = useState(false);
+  const [result, setResult] = useState<Result | null>(null);
+  const [apiErr, setApiErr] = useState("");
   const [revealed, setRevealed] = useState<Set<number>>(new Set());
-  const [tab,      setTab]      = useState<"exp"|"hints"|"info">("exp");
+  const [tab, setTab] = useState<"exp" | "hints" | "info">("exp");
 
   const loadSample = () => {
     const s = SAMPLES[lang] ?? SAMPLES.python;
@@ -69,271 +48,301 @@ export default function DebugPage() {
     setApiErr(""); setResult(null); setLoad(true); setRevealed(new Set()); setTab("exp");
     try {
       const res = await fetch("/api/debug", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({ code, language:lang, error:errMsg }),
-        credentials:"include"
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, language: lang, error: errMsg }),
+        credentials: "include",
       });
       const d = await res.json();
       if (!d.success) throw new Error(d.error?.message || "Analysis failed");
       setResult(d.data);
-    } catch(e:unknown) { setApiErr(e instanceof Error ? e.message : "Error"); }
+    } catch (e: unknown) { setApiErr(e instanceof Error ? e.message : "Error"); }
     finally { setLoad(false); }
   };
 
-  const reveal = (i:number) => setRevealed(p => new Set([...p,i]));
+  const reveal = (i: number) => setRevealed((p) => new Set([...p, i]));
   const lines = result?.affectedLines ?? [];
   const lineCount = code.split("\n").length;
 
   return (
-    <div className="page-pad" style={{padding:"28px 32px", background:"var(--bg)", minHeight:"100%"}}>
-      <div className="fu" style={{marginBottom:24}}>
-        <h1 style={{fontSize:24, fontWeight:900, color:"var(--text)", letterSpacing:"-.5px"}}>Code Debugging Assistant</h1>
-        <p style={{fontSize:13, color:"var(--muted)", marginTop:6}}>
-          Paste your code → get Socratic hints & explanations. <span style={{color:"#f87171",fontWeight:600}}>No solutions — you fix it.</span>
+    <motion.div initial="hidden" animate="visible" variants={stagger} className="page p-7 min-h-full">
+      <motion.div variants={fadeUp} className="mb-6">
+        <h1 className="text-2xl font-black text-[var(--text)] tracking-tight">Code Debugging Assistant</h1>
+        <p className="text-[13px] text-[var(--muted)] mt-1.5">
+          Paste your code {"\u2192"} get Socratic hints & explanations. <span className="text-[#f87171] font-semibold">No solutions {"\u2014"} you fix it.</span>
         </p>
-      </div>
+      </motion.div>
 
-      <div className="grid-2col" style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:20}}>
-
-        {/* ── Left: Editor ── */}
-        <div style={{display:"flex", flexDirection:"column", gap:12}}>
-          <div style={{display:"flex", gap:5, flexWrap:"wrap"}}>
-            {LANGS.map(l=>(
-              <button key={l} onClick={()=>{ setLang(l); setResult(null); setRevealed(new Set()); }}
-                style={{padding:"5px 14px", borderRadius:8, fontFamily:"inherit",
-                  border:`1px solid ${lang===l ? "rgba(248,113,113,0.4)" : "var(--border)"}`,
-                  background:lang===l ? "rgba(248,113,113,0.1)" : "var(--surface)",
-                  color:lang===l ? "#f87171" : "var(--muted)", fontSize:11, fontWeight:600, cursor:"pointer"}}>
+      <div className="grid grid-cols-2 max-lg:grid-cols-1 gap-5">
+        {/* Left: Editor */}
+        <motion.div variants={fadeUp} className="flex flex-col gap-3">
+          <div className="flex gap-[5px] flex-wrap">
+            {LANGS.map((l) => (
+              <button key={l} onClick={() => { setLang(l); setResult(null); setRevealed(new Set()); }}
+                className="px-3.5 py-[5px] rounded-lg text-[11px] font-semibold cursor-pointer border transition-all"
+                style={{
+                  borderColor: lang === l ? "rgba(248,113,113,0.25)" : "var(--border)",
+                  background: lang === l ? "rgba(248,113,113,0.06)" : "var(--surface)",
+                  color: lang === l ? "#f87171" : "var(--muted)",
+                }}>
                 {l}
               </button>
             ))}
             <button onClick={loadSample}
-              style={{marginLeft:"auto", padding:"5px 14px", borderRadius:8, border:"1px solid var(--border)", background:"var(--surface2)", color:"var(--muted)", fontSize:11, cursor:"pointer", fontFamily:"inherit"}}>
-              🐛 Sample
+              className="ml-auto px-3.5 py-[5px] rounded-lg border border-[var(--border)] bg-[var(--surface2)] text-[var(--muted)] text-[11px] cursor-pointer hover:text-[var(--text)] transition-colors">
+              {"\u{1F41B}"} Sample
             </button>
           </div>
 
-          <div style={{display:"flex", borderRadius:12, overflow:"hidden", border:"1px solid var(--border)", background:"#0d1117"}}>
-            <div style={{width:38, background:"#0d1117", borderRight:"1px solid var(--border)", padding:"14px 0", flexShrink:0, userSelect:"none"}}>
-              {Array.from({length:Math.max(lineCount,20)},(_,i)=>i+1).map(n=>(
-                <div key={n} style={{height:22, paddingRight:8, textAlign:"right", fontSize:11, fontFamily:"monospace",
-                  color:lines.includes(n) ? "#f87171" : "#2a3a55",
-                  background:lines.includes(n) ? "rgba(248,113,113,0.07)" : "transparent",
-                  lineHeight:"22px"}}>{n}</div>
+          <div className="flex rounded-xl overflow-hidden border border-[var(--border)] bg-[#0d1117]">
+            <div className="w-[38px] bg-[#0d1117] border-r border-[var(--border)] py-3.5 flex-shrink-0 select-none">
+              {Array.from({ length: Math.max(lineCount, 20) }, (_, i) => i + 1).map((n) => (
+                <div key={n} className="h-[22px] pr-2 text-right text-[11px] mono leading-[22px]"
+                  style={{
+                    color: lines.includes(n) ? "#f87171" : "#2a3a55",
+                    background: lines.includes(n) ? "rgba(248,113,113,0.07)" : "transparent",
+                  }}>
+                  {n}
+                </div>
               ))}
             </div>
-            <textarea value={code} onChange={e=>setCode(e.target.value)} spellCheck={false}
-              style={{flex:1, background:"transparent", border:"none", outline:"none", padding:"14px", color:"#c9d8f0", fontSize:13, lineHeight:"22px", resize:"none", minHeight:320, fontFamily:"monospace"}}
-              placeholder={`// Paste your ${lang} code here…`}
+            <textarea value={code} onChange={(e) => setCode(e.target.value)} spellCheck={false}
+              className="flex-1 bg-transparent border-none outline-none p-3.5 text-[#c9d8f0] text-[13px] leading-[22px] resize-none min-h-[320px] mono"
+              placeholder={`// Paste your ${lang} code here\u2026`}
             />
           </div>
 
-          <textarea value={errMsg} onChange={e=>setErrMsg(e.target.value)} rows={3} spellCheck={false}
-            placeholder="Error message / traceback (optional)…"
-            style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"10px 14px", color:"#f87171", fontSize:12, lineHeight:1.6, resize:"none", outline:"none", fontFamily:"monospace"}}
+          <textarea value={errMsg} onChange={(e) => setErrMsg(e.target.value)} rows={3} spellCheck={false}
+            placeholder="Error message / traceback (optional)\u2026"
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-[10px] px-3.5 py-2.5 text-[#f87171] text-xs leading-relaxed resize-none outline-none mono focus:border-[rgba(248,113,113,0.3)] transition-colors"
           />
 
-          {apiErr && <div style={{background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.3)", borderRadius:10, padding:"10px 14px", fontSize:12, color:"#f87171"}}>{apiErr}</div>}
+          {apiErr && (
+            <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-[rgba(248,113,113,0.06)] border border-[rgba(248,113,113,0.19)] rounded-[10px] px-3.5 py-2.5 text-xs text-[#f87171]">
+              {apiErr}
+            </motion.div>
+          )}
 
-          <button onClick={analyse} disabled={!code.trim()||loading}
-            className="btn-glow"
-            style={{padding:"14px", borderRadius:12, border:"none", cursor:"pointer",
-              background:"linear-gradient(135deg,#f87171,#fbbf24)", color:"#fff",
-              fontSize:15, fontWeight:700, fontFamily:"inherit", letterSpacing:".2px",
-              display:"flex", alignItems:"center", justifyContent:"center", gap:8,
-              opacity:!code.trim()||loading ? 0.5 : 1}}>
-            {loading
-              ? <><span style={{width:16, height:16, border:"2px solid rgba(255,255,255,0.3)", borderTopColor:"#fff", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite"}}/>Analysing…</>
-              : "🔍 Analyse Code"}
-          </button>
+          <motion.button
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={analyse}
+            disabled={!code.trim() || loading}
+            className="py-3.5 rounded-xl border-none cursor-pointer text-white text-[15px] font-bold flex items-center justify-center gap-2 tracking-wide disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: "linear-gradient(135deg, #f87171, #fbbf24)" }}>
+            {loading ? (
+              <><span className="spinner w-4 h-4" /> Analysing{"\u2026"}</>
+            ) : (
+              "\u{1F50D} Analyse Code"
+            )}
+          </motion.button>
 
-          <div style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:10, padding:"10px 14px"}}>
-            <p style={{fontSize:11, color:"var(--muted)"}}>
-              <span style={{color:"#f87171", fontWeight:700}}>Socratic rule:</span> This tool explains concepts and guides you — it never writes the fix for you.
+          <div className="card rounded-[10px] px-3.5 py-2.5">
+            <p className="text-[11px] text-[var(--muted)]">
+              <span className="text-[#f87171] font-bold">Socratic rule:</span> This tool explains concepts and guides you {"\u2014"} it never writes the fix for you.
             </p>
           </div>
-        </div>
+        </motion.div>
 
-        {/* ── Right: Result ── */}
-        <div>
+        {/* Right: Result */}
+        <motion.div variants={fadeUp}>
           {!result && !loading && (
-            <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:480, gap:14, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:16}}>
-              <div style={{fontSize:40}}>🔍</div>
-              <p style={{fontSize:14, fontWeight:700, color:"var(--text)"}}>Debug output appears here</p>
-              <p style={{fontSize:12, color:"var(--muted)"}}>Paste code on the left and click Analyse</p>
+            <div className="flex flex-col items-center justify-center min-h-[480px] gap-3.5 card rounded-2xl">
+              <div className="text-[40px]">{"\u{1F50D}"}</div>
+              <p className="text-sm font-bold text-[var(--text)]">Debug output appears here</p>
+              <p className="text-xs text-[var(--muted)]">Paste code on the left and click Analyse</p>
             </div>
           )}
 
           {loading && (
-            <div style={{display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", minHeight:480, gap:12, background:"var(--surface)", border:"1px solid var(--border)", borderRadius:16}}>
-              <span style={{width:36, height:36, border:"3px solid rgba(248,113,113,0.2)", borderTopColor:"#f87171", borderRadius:"50%", display:"inline-block", animation:"spin 0.7s linear infinite"}}/>
-              <p style={{fontSize:13, fontWeight:700, color:"var(--text)"}}>Analysing your code…</p>
-              {["Detecting error type","Building explanation","Crafting hints"].map((s,i)=>(
-                <span key={s} style={{fontSize:11, color:"var(--muted)", background:"var(--surface2)", border:"1px solid var(--border)", borderRadius:20, padding:"4px 14px", animationDelay:`${i*.4}s`}}>{s}</span>
+            <div className="flex flex-col items-center justify-center min-h-[480px] gap-3 card rounded-2xl">
+              <span className="spinner w-9 h-9" />
+              <p className="text-[13px] font-bold text-[var(--text)]">Analysing your code{"\u2026"}</p>
+              {["Detecting error type", "Building explanation", "Crafting hints"].map((s, i) => (
+                <motion.span key={s} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.4 }}
+                  className="text-[11px] text-[var(--muted)] bg-[var(--surface2)] border border-[var(--border)] rounded-full px-3.5 py-1">
+                  {s}
+                </motion.span>
               ))}
             </div>
           )}
 
-          {/* ✅ Code is CORRECT */}
-          {result && !result.hasError && (
-            <div style={{display:"flex", flexDirection:"column", gap:12}}>
-              <div style={{background:"rgba(52,211,153,0.08)", border:"1px solid rgba(52,211,153,0.3)", borderRadius:14, padding:"20px"}}>
-                <div style={{display:"flex", alignItems:"center", gap:12, marginBottom:12}}>
-                  <div style={{width:42, height:42, borderRadius:12, background:"rgba(52,211,153,0.15)", border:"1px solid rgba(52,211,153,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:20}}>✅</div>
-                  <div>
-                    <p style={{fontSize:9, color:"#34d399", textTransform:"uppercase", letterSpacing:2, fontWeight:700}}>No Bugs Found</p>
-                    <p style={{fontSize:15, fontWeight:800, color:"#34d399", marginTop:3}}>Code looks correct!</p>
+          {/* Code is CORRECT */}
+          <AnimatePresence>
+            {result && !result.hasError && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3">
+                <div className="bg-[rgba(52,211,153,0.05)] border border-[rgba(52,211,153,0.19)] rounded-[14px] p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-[42px] h-[42px] rounded-xl bg-[rgba(52,211,153,0.1)] border border-[rgba(52,211,153,0.19)] flex items-center justify-center text-xl">{"\u2705"}</div>
+                    <div>
+                      <p className="text-[9px] text-[#34d399] uppercase tracking-[2px] font-bold">No Bugs Found</p>
+                      <p className="text-[15px] font-extrabold text-[#34d399] mt-0.5">Code looks correct!</p>
+                    </div>
                   </div>
+                  <p className="text-[13px] text-[var(--text)] leading-[1.7]">{result.errorSummary}</p>
                 </div>
-                <p style={{fontSize:13, color:"var(--text)", lineHeight:1.7}}>{result.errorSummary}</p>
-              </div>
 
-              {result.conceptExplanation && (
-                <div style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, padding:"16px 20px", display:"flex", flexDirection:"column", gap:12}}>
-                  <div>
-                    <p style={{fontSize:9, color:"#a78bfa", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:8}}>💡 Concept</p>
-                    <p style={{fontSize:13, color:"var(--text)", lineHeight:1.7}}>{result.conceptExplanation}</p>
-                  </div>
-                  {result.hints.length > 0 && (
-                    <div style={{borderTop:"1px solid var(--border)", paddingTop:12}}>
-                      <p style={{fontSize:9, color:"#4f8ef7", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:8}}>🚀 Ways to improve</p>
-                      {result.hints.map((h,i)=>(
-                        <div key={i} style={{display:"flex", gap:10, alignItems:"flex-start", marginBottom:8}}>
-                          <span style={{width:20, height:20, borderRadius:6, background:"rgba(79,142,247,0.15)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, fontWeight:700, color:"#4f8ef7", flexShrink:0, fontFamily:"monospace"}}>{i+1}</span>
-                          <p style={{fontSize:12, color:"var(--muted)", lineHeight:1.6}}>{h}</p>
+                {result.conceptExplanation && (
+                  <div className="card rounded-[14px] p-5 flex flex-col gap-3">
+                    <div>
+                      <p className="label mb-2">{"\u{1F4A1}"} Concept</p>
+                      <p className="text-[13px] text-[var(--text)] leading-[1.7]">{result.conceptExplanation}</p>
+                    </div>
+                    {result.hints.length > 0 && (
+                      <div className="border-t border-[var(--border)] pt-3">
+                        <p className="text-[9px] text-brand uppercase tracking-[2px] font-bold mb-2">{"\u{1F680}"} Ways to improve</p>
+                        {result.hints.map((h, i) => (
+                          <div key={i} className="flex gap-2.5 items-start mb-2">
+                            <span className="w-5 h-5 rounded-md bg-brand/[0.1] flex items-center justify-center text-[10px] font-bold text-brand flex-shrink-0 mono">{i + 1}</span>
+                            <p className="text-xs text-[var(--muted)] leading-relaxed">{h}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {result.furtherReading && (
+                      <div className="bg-[rgba(167,139,250,0.04)] border border-[rgba(167,139,250,0.12)] rounded-[10px] px-3.5 py-2.5 flex gap-2">
+                        <span>{"\u{1F4D6}"}</span>
+                        <div>
+                          <p className="text-[9px] text-[#a78bfa] font-bold uppercase tracking-[1px]">Review This Topic</p>
+                          <p className="text-xs text-[var(--text)] mt-0.5">{result.furtherReading}</p>
                         </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Bugs found */}
+          <AnimatePresence>
+            {result && result.hasError && (
+              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-3">
+                <div className="card rounded-[14px] p-5">
+                  <div className="flex items-start gap-3 mb-2.5">
+                    <div className="w-[38px] h-[38px] rounded-[10px] bg-[rgba(248,113,113,0.06)] border border-[rgba(248,113,113,0.19)] flex items-center justify-center text-lg flex-shrink-0">{"\u{1F41B}"}</div>
+                    <div className="flex-1">
+                      <p className="text-[9px] text-[var(--muted)] uppercase tracking-[2px] font-bold">Error Detected</p>
+                      <p className="text-[15px] font-extrabold text-[#f87171] mt-0.5 mono">{result.errorType}</p>
+                    </div>
+                    <span className="text-[10px] px-2.5 py-0.5 rounded-full font-bold"
+                      style={{
+                        background: `${dStyle[result.difficulty] ?? "#888"}18`,
+                        color: dStyle[result.difficulty] ?? "#888",
+                        border: `1px solid ${dStyle[result.difficulty] ?? "#888"}35`,
+                      }}>
+                      {result.difficulty}
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--text)] leading-relaxed">{result.errorSummary}</p>
+                  {lines.length > 0 && (
+                    <div className="mt-2.5 flex gap-1.5 flex-wrap">
+                      {lines.map((l) => (
+                        <span key={l} className="text-[10px] text-[#f87171] bg-[rgba(248,113,113,0.06)] border border-[rgba(248,113,113,0.19)] px-2.5 py-0.5 rounded-md mono">Line {l}</span>
                       ))}
                     </div>
                   )}
-                  {result.furtherReading && (
-                    <div style={{background:"rgba(167,139,250,0.06)", border:"1px solid rgba(167,139,250,0.2)", borderRadius:10, padding:"10px 14px", display:"flex", gap:8}}>
-                      <span>📖</span>
-                      <div>
-                        <p style={{fontSize:9, color:"#a78bfa", fontWeight:700, textTransform:"uppercase", letterSpacing:1}}>Review This Topic</p>
-                        <p style={{fontSize:12, color:"var(--text)", marginTop:3}}>{result.furtherReading}</p>
-                      </div>
-                    </div>
-                  )}
                 </div>
-              )}
-            </div>
-          )}
 
-          {/* 🐛 Bugs found */}
-          {result && result.hasError && (
-            <div style={{display:"flex", flexDirection:"column", gap:12}}>
-              <div style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, padding:"16px 20px"}}>
-                <div style={{display:"flex", alignItems:"flex-start", gap:12, marginBottom:10}}>
-                  <div style={{width:38, height:38, borderRadius:10, background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.3)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0}}>🐛</div>
-                  <div style={{flex:1}}>
-                    <p style={{fontSize:9, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700}}>Error Detected</p>
-                    <p style={{fontSize:15, fontWeight:800, color:"#f87171", marginTop:3, fontFamily:"monospace"}}>{result.errorType}</p>
-                  </div>
-                  <span style={{fontSize:10, padding:"3px 10px", borderRadius:20,
-                    background:`${dStyle[result.difficulty] ?? "#888"}18`,
-                    color:dStyle[result.difficulty] ?? "#888",
-                    border:`1px solid ${dStyle[result.difficulty] ?? "#888"}35`, fontWeight:700}}>
-                    {result.difficulty}
-                  </span>
-                </div>
-                <p style={{fontSize:12, color:"var(--text)", lineHeight:1.6}}>{result.errorSummary}</p>
-                {lines.length > 0 && (
-                  <div style={{marginTop:10, display:"flex", gap:6, flexWrap:"wrap"}}>
-                    {lines.map(l=><span key={l} style={{fontSize:10, color:"#f87171", background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.3)", padding:"2px 10px", borderRadius:6, fontFamily:"monospace"}}>Line {l}</span>)}
-                  </div>
-                )}
-              </div>
-
-              <div style={{display:"flex", background:"var(--surface)", border:"1px solid var(--border)", borderRadius:11, padding:4, gap:4}}>
-                {([["exp","💡 Explanation"],["hints","🗝 Hints"],["info","📋 Details"]] as const).map(([k,l])=>(
-                  <button key={k} onClick={()=>setTab(k)} style={{flex:1, padding:"7px", borderRadius:8, fontFamily:"inherit",
-                    border:`1px solid ${tab===k ? "rgba(248,113,113,0.3)" : "transparent"}`,
-                    background:tab===k ? "rgba(248,113,113,0.08)" : "transparent",
-                    color:tab===k ? "#f87171" : "var(--muted)", fontSize:12, fontWeight:tab===k?700:400, cursor:"pointer"}}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-
-              {tab==="exp" && (
-                <div style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, padding:"16px 20px", display:"flex", flexDirection:"column", gap:14}}>
-                  <div>
-                    <p style={{fontSize:9, color:"#a78bfa", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:8}}>Concept</p>
-                    <p style={{fontSize:13, color:"var(--text)", lineHeight:1.7}}>{result.conceptExplanation}</p>
-                  </div>
-                  <div style={{borderTop:"1px solid var(--border)", paddingTop:14}}>
-                    <p style={{fontSize:9, color:"#fbbf24", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:8}}>Why beginners make this mistake</p>
-                    <p style={{fontSize:12, color:"var(--muted)", lineHeight:1.6}}>{result.commonMistake}</p>
-                  </div>
-                  <div style={{background:"rgba(167,139,250,0.06)", border:"1px solid rgba(167,139,250,0.2)", borderRadius:10, padding:"10px 14px", display:"flex", gap:8}}>
-                    <span>📖</span>
-                    <div>
-                      <p style={{fontSize:9, color:"#a78bfa", fontWeight:700, textTransform:"uppercase", letterSpacing:1}}>Review This Topic</p>
-                      <p style={{fontSize:12, color:"var(--text)", marginTop:3}}>{result.furtherReading}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {tab==="hints" && (
-                <div style={{display:"flex", flexDirection:"column", gap:8}}>
-                  <p style={{fontSize:11, color:"var(--muted)", paddingLeft:2}}>Reveal hints one at a time. Try to fix the bug before opening the next.</p>
-                  {result.hints.map((h,i)=>(
-                    <div key={i} style={{background:"var(--surface)",
-                      border:`1px solid ${revealed.has(i) ? "rgba(251,191,36,0.35)" : "var(--border)"}`,
-                      borderRadius:12, overflow:"hidden"}}>
-                      <div style={{display:"flex", alignItems:"center", gap:12, padding:"12px 16px"}}>
-                        <div style={{width:28, height:28, borderRadius:8, fontFamily:"monospace",
-                          background:revealed.has(i) ? "rgba(251,191,36,0.15)" : "var(--surface2)",
-                          display:"flex", alignItems:"center", justifyContent:"center",
-                          fontSize:11, fontWeight:700, color:revealed.has(i) ? "#fbbf24" : "var(--muted)", flexShrink:0}}>
-                          {i+1}
-                        </div>
-                        {revealed.has(i)
-                          ? <p style={{flex:1, fontSize:13, color:"var(--text)", lineHeight:1.6}}>{h}</p>
-                          : <p style={{flex:1, fontSize:13, color:"var(--muted)", fontStyle:"italic"}}>Hint {i+1} hidden…</p>}
-                        {!revealed.has(i) && (
-                          <button onClick={()=>reveal(i)} disabled={i>0 && !revealed.has(i-1)}
-                            style={{padding:"5px 14px", borderRadius:8, fontFamily:"inherit",
-                              border:"1px solid rgba(251,191,36,0.3)", background:"rgba(251,191,36,0.1)",
-                              color:"#fbbf24", fontSize:11, fontWeight:700, cursor:"pointer",
-                              opacity:i>0 && !revealed.has(i-1) ? 0.35 : 1}}>
-                            {i>0 && !revealed.has(i-1) ? "🔒" : "Reveal"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
+                {/* Tabs */}
+                <div className="flex bg-[var(--surface)] border border-[var(--border)] rounded-[11px] p-1 gap-1">
+                  {([["exp", "\u{1F4A1} Explanation"], ["hints", "\u{1F5DD} Hints"], ["info", "\u{1F4CB} Details"]] as const).map(([k, l]) => (
+                    <button key={k} onClick={() => setTab(k)}
+                      className="flex-1 py-[7px] rounded-lg text-xs cursor-pointer border transition-all"
+                      style={{
+                        borderColor: tab === k ? "rgba(248,113,113,0.19)" : "transparent",
+                        background: tab === k ? "rgba(248,113,113,0.05)" : "transparent",
+                        color: tab === k ? "#f87171" : "var(--muted)",
+                        fontWeight: tab === k ? 700 : 400,
+                      }}>
+                      {l}
+                    </button>
                   ))}
-                  <p style={{fontSize:10, color:"var(--muted)", textAlign:"center", paddingTop:4}}>Hints unlock in order — work through each one before moving on</p>
                 </div>
-              )}
 
-              {tab==="info" && (
-                <div style={{background:"var(--surface)", border:"1px solid var(--border)", borderRadius:14, padding:"16px 20px", display:"flex", flexDirection:"column", gap:14}}>
-                  <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:10}}>
-                    {[["Language",lang],["Error Type",result.errorType],["Difficulty",result.difficulty],["Hints",`${result.hints.length} available`]].map(([l,v])=>(
-                      <div key={l} style={{background:"var(--surface2)", borderRadius:10, padding:"10px 14px", border:"1px solid var(--border)"}}>
-                        <p style={{fontSize:9, color:"var(--muted)", textTransform:"uppercase", letterSpacing:1.5}}>{l}</p>
-                        <p style={{fontSize:13, fontWeight:700, color:"var(--text)", marginTop:4}}>{v}</p>
+                <AnimatePresence mode="wait">
+                  {tab === "exp" && (
+                    <motion.div key="exp" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="card rounded-[14px] p-5 flex flex-col gap-3.5">
+                      <div>
+                        <p className="label mb-2">Concept</p>
+                        <p className="text-[13px] text-[var(--text)] leading-[1.7]">{result.conceptExplanation}</p>
                       </div>
-                    ))}
-                  </div>
-                  {lines.length > 0 && (
-                    <div style={{background:"rgba(248,113,113,0.05)", border:"1px solid rgba(248,113,113,0.2)", borderRadius:10, padding:"10px 14px"}}>
-                      <p style={{fontSize:9, color:"#f87171", fontWeight:700, textTransform:"uppercase", letterSpacing:1.5, marginBottom:8}}>Flagged Lines</p>
-                      <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
-                        {lines.map(l=><span key={l} style={{fontSize:11, color:"#f87171", background:"rgba(248,113,113,0.1)", border:"1px solid rgba(248,113,113,0.3)", padding:"3px 12px", borderRadius:8, fontFamily:"monospace"}}>Line {l}</span>)}
+                      <div className="border-t border-[var(--border)] pt-3.5">
+                        <p className="text-[9px] text-[#fbbf24] uppercase tracking-[2px] font-bold mb-2">Why beginners make this mistake</p>
+                        <p className="text-xs text-[var(--muted)] leading-relaxed">{result.commonMistake}</p>
                       </div>
-                    </div>
+                      <div className="bg-[rgba(167,139,250,0.04)] border border-[rgba(167,139,250,0.12)] rounded-[10px] px-3.5 py-2.5 flex gap-2">
+                        <span>{"\u{1F4D6}"}</span>
+                        <div>
+                          <p className="text-[9px] text-[#a78bfa] font-bold uppercase tracking-[1px]">Review This Topic</p>
+                          <p className="text-xs text-[var(--text)] mt-0.5">{result.furtherReading}</p>
+                        </div>
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+
+                  {tab === "hints" && (
+                    <motion.div key="hints" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="flex flex-col gap-2">
+                      <p className="text-[11px] text-[var(--muted)] pl-0.5">Reveal hints one at a time. Try to fix the bug before opening the next.</p>
+                      {result.hints.map((h, i) => (
+                        <div key={i} className="card rounded-xl overflow-hidden"
+                          style={{ borderColor: revealed.has(i) ? "rgba(251,191,36,0.22)" : undefined }}>
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-7 h-7 rounded-lg mono flex items-center justify-center text-[11px] font-bold flex-shrink-0"
+                              style={{
+                                background: revealed.has(i) ? "rgba(251,191,36,0.1)" : "var(--surface2)",
+                                color: revealed.has(i) ? "#fbbf24" : "var(--muted)",
+                              }}>
+                              {i + 1}
+                            </div>
+                            {revealed.has(i)
+                              ? <p className="flex-1 text-[13px] text-[var(--text)] leading-relaxed">{h}</p>
+                              : <p className="flex-1 text-[13px] text-[var(--muted)] italic">Hint {i + 1} hidden{"\u2026"}</p>}
+                            {!revealed.has(i) && (
+                              <button onClick={() => reveal(i)} disabled={i > 0 && !revealed.has(i - 1)}
+                                className="px-3.5 py-[5px] rounded-lg border border-[rgba(251,191,36,0.19)] bg-[rgba(251,191,36,0.06)] text-[#fbbf24] text-[11px] font-bold cursor-pointer disabled:opacity-35 transition-colors hover:bg-[rgba(251,191,36,0.12)]">
+                                {i > 0 && !revealed.has(i - 1) ? "\u{1F512}" : "Reveal"}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-[var(--muted)] text-center pt-1">Hints unlock in order {"\u2014"} work through each one before moving on</p>
+                    </motion.div>
+                  )}
+
+                  {tab === "info" && (
+                    <motion.div key="info" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="card rounded-[14px] p-5 flex flex-col gap-3.5">
+                      <div className="grid grid-cols-2 gap-2.5">
+                        {[["Language", lang], ["Error Type", result.errorType], ["Difficulty", result.difficulty], ["Hints", `${result.hints.length} available`]].map(([l, v]) => (
+                          <div key={l} className="bg-[var(--surface2)] rounded-[10px] px-3.5 py-2.5 border border-[var(--border)]">
+                            <p className="text-[9px] text-[var(--muted)] uppercase tracking-[1.5px]">{l}</p>
+                            <p className="text-[13px] font-bold text-[var(--text)] mt-1">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+                      {lines.length > 0 && (
+                        <div className="bg-[rgba(248,113,113,0.03)] border border-[rgba(248,113,113,0.12)] rounded-[10px] px-3.5 py-2.5">
+                          <p className="text-[9px] text-[#f87171] font-bold uppercase tracking-[1.5px] mb-2">Flagged Lines</p>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {lines.map((l) => (
+                              <span key={l} className="text-[11px] text-[#f87171] bg-[rgba(248,113,113,0.06)] border border-[rgba(248,113,113,0.19)] px-3 py-0.5 rounded-lg mono">Line {l}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </motion.div>
   );
 }

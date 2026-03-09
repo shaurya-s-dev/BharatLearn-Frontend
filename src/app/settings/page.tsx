@@ -1,29 +1,32 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { fadeUp, stagger } from "@/lib/motion";
 
-interface User { name: string; email: string; avatar: string; }
+interface User { name: string; email: string; avatar: string }
 
 function HamsterLoader({ show }: { show: boolean }) {
   if (!show) return null;
   return (
-    <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(5,9,18,.95)",backdropFilter:"blur(12px)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:24}}>
+    <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-6"
+      style={{ background: "rgba(5,9,18,.95)", backdropFilter: "blur(12px)" }}>
       <div className="wheel-and-hamster" aria-label="Loading" role="img">
-        <div className="wheel"/><div className="hamster"><div className="hamster__body"><div className="hamster__head"><div className="hamster__ear"/><div className="hamster__eye"/><div className="hamster__nose"/></div><div className="hamster__limb hamster__limb--fr"/><div className="hamster__limb hamster__limb--fl"/><div className="hamster__limb hamster__limb--br"/><div className="hamster__limb hamster__limb--bl"/><div className="hamster__tail"/></div></div><div className="spoke"/>
+        <div className="wheel" /><div className="hamster"><div className="hamster__body"><div className="hamster__head"><div className="hamster__ear" /><div className="hamster__eye" /><div className="hamster__nose" /></div><div className="hamster__limb hamster__limb--fr" /><div className="hamster__limb hamster__limb--fl" /><div className="hamster__limb hamster__limb--br" /><div className="hamster__limb hamster__limb--bl" /><div className="hamster__tail" /></div></div><div className="spoke" />
       </div>
-      <p style={{color:"rgba(255,255,255,.5)",fontSize:13,letterSpacing:".5px"}}>Saving preferences…</p>
+      <p className="text-[13px] text-white/50 tracking-wide">Saving preferences{"\u2026"}</p>
     </div>
   );
 }
 
 export default function SettingsPage() {
-  const [user, setUser]       = useState<User|null>(null);
-  const [saved, setSaved]     = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme]     = useState("dark");
+  const [theme, setTheme] = useState("dark");
 
   useEffect(() => {
-    fetch("/auth/me",{credentials:"include"})
-      .then(r=>r.json()).then(d=>d.user&&setUser(d.user)).catch(()=>{});
+    fetch("/auth/me", { credentials: "include" })
+      .then((r) => r.json()).then((d) => d.user && setUser(d.user)).catch(() => {});
     const raw = localStorage.getItem("bl_prefs");
     if (raw) {
       const p = JSON.parse(raw);
@@ -48,95 +51,116 @@ export default function SettingsPage() {
     }, 1600);
   };
 
-  const card: React.CSSProperties = { background:"var(--surface)", border:"1px solid var(--border)", borderRadius:16, padding:"22px 24px", marginBottom:16 };
-  const lbl: React.CSSProperties  = { fontSize:10, color:"var(--muted)", textTransform:"uppercase", letterSpacing:2, fontWeight:700, marginBottom:16 };
-
   return (
     <>
-      <HamsterLoader show={loading}/>
-      <div style={{padding:"28px 32px",background:"var(--bg)",minHeight:"100%",maxWidth:660,margin:"0 auto"}}>
+      <HamsterLoader show={loading} />
+      <motion.div initial="hidden" animate="visible" variants={stagger}
+        className="page p-7 min-h-full max-w-[660px] mx-auto">
 
-        <div className="fu" style={{marginBottom:28,textAlign:"center"}}>
-          <h1 style={{fontSize:28,fontWeight:900,color:"var(--text)",letterSpacing:"-.5px"}}>⚙️ Settings</h1>
-          <p style={{fontSize:14,color:"var(--muted)",marginTop:6}}>Manage your account and preferences</p>
-        </div>
+        <motion.div variants={fadeUp} className="mb-7 text-center">
+          <h1 className="text-[28px] font-black text-[var(--text)] tracking-tight">{"\u2699\uFE0F"} Settings</h1>
+          <p className="text-sm text-[var(--muted)] mt-1.5">Manage your account and preferences</p>
+        </motion.div>
 
         {/* Account */}
-        <div className="fu" style={card}>
-          <p style={lbl}>Account</p>
+        <motion.div variants={fadeUp} className="card rounded-2xl p-5 mb-4">
+          <p className="label mb-4">Account</p>
           {user ? (
-            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+            <div className="flex items-center gap-3.5 mb-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={user.avatar} alt="" width={56} height={56} style={{borderRadius:"50%",border:"2px solid rgba(79,142,247,.4)",boxShadow:"0 0 16px #4f8ef730"}}/>
+              <img src={user.avatar} alt="" width={56} height={56}
+                className="rounded-full border-2 border-[rgba(79,142,247,0.4)]"
+                style={{ boxShadow: "0 0 16px rgba(79,142,247,0.19)" }} />
               <div>
-                <p style={{fontSize:16,fontWeight:800,color:"var(--text)"}}>{user.name}</p>
-                <p style={{fontSize:12,color:"var(--muted)",marginTop:3}}>{user.email}</p>
-                <p style={{fontSize:11,color:"#34d399",marginTop:5}}>✓ Google account connected</p>
+                <p className="text-base font-extrabold text-[var(--text)]">{user.name}</p>
+                <p className="text-xs text-[var(--muted)] mt-[3px]">{user.email}</p>
+                <p className="text-[11px] text-[#34d399] mt-[5px]">{"\u2713"} Google account connected</p>
               </div>
             </div>
           ) : (
-            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:12,padding:"16px 18px",marginBottom:14}}>
-              <p style={{fontSize:13,color:"var(--muted)",marginBottom:12}}>Sign in to save your progress and sync across devices.</p>
-              <a href="/auth/google" style={{display:"inline-flex",alignItems:"center",gap:9,padding:"10px 20px",borderRadius:10,background:"#fff",color:"#1a1a1a",fontSize:13,fontWeight:700,textDecoration:"none",boxShadow:"0 2px 12px rgba(0,0,0,.2)"}}>
-                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+            <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-xl p-4 mb-3.5">
+              <p className="text-[13px] text-[var(--muted)] mb-3">Sign in to save your progress and sync across devices.</p>
+              <a href="/auth/google"
+                className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-[10px] bg-white text-[#1a1a1a] text-[13px] font-bold no-underline"
+                style={{ boxShadow: "0 2px 12px rgba(0,0,0,.2)" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" /><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" /><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" /><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" /></svg>
                 Continue with Google
               </a>
             </div>
           )}
-          {user && <a href="/auth/logout" style={{display:"inline-flex",alignItems:"center",gap:6,padding:"7px 16px",borderRadius:9,border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--muted)",fontSize:12,textDecoration:"none",fontWeight:600}}>Sign out</a>}
-        </div>
+          {user && (
+            <a href="/auth/logout"
+              className="inline-flex items-center gap-1.5 px-4 py-[7px] rounded-[9px] border border-[var(--border)] bg-[var(--surface2)] text-[var(--muted)] text-xs no-underline font-semibold hover:text-[var(--text)] transition-colors">
+              Sign out
+            </a>
+          )}
+        </motion.div>
 
-        {/* Appearance — theme only */}
-        <div className="fu1" style={card}>
-          <p style={lbl}>Appearance</p>
-          <p style={{fontSize:12,color:"var(--muted)",marginBottom:12}}>Theme <span style={{fontSize:10,opacity:.5}}>(changes instantly)</span></p>
-          <div style={{display:"flex",gap:8}}>
-            {[["dark","🌙 Dark"],["light","☀️ Light"],["system","💻 System"]].map(([val,label])=>(
-              <button key={val} onClick={()=>setTheme(val)} style={{
-                padding:"10px 20px",borderRadius:10,cursor:"pointer",fontSize:13,
-                fontWeight:theme===val?700:400,
-                border:`1px solid ${theme===val?"#4f8ef740":"var(--border)"}`,
-                background:theme===val?"#4f8ef715":"var(--surface2)",
-                color:theme===val?"#4f8ef7":"var(--muted)",
-                transition:"all .15s",
-              }}>{label}</button>
+        {/* Appearance */}
+        <motion.div variants={fadeUp} className="card rounded-2xl p-5 mb-4">
+          <p className="label mb-4">Appearance</p>
+          <p className="text-xs text-[var(--muted)] mb-3">Theme <span className="text-[10px] opacity-50">(changes instantly)</span></p>
+          <div className="flex gap-2">
+            {([["dark", "\u{1F319} Dark"], ["light", "\u2600\uFE0F Light"], ["system", "\u{1F4BB} System"]] as const).map(([val, label]) => (
+              <motion.button key={val} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => setTheme(val)}
+                className="px-5 py-2.5 rounded-[10px] cursor-pointer text-[13px] border transition-all"
+                style={{
+                  fontWeight: theme === val ? 700 : 400,
+                  borderColor: theme === val ? "rgba(79,142,247,0.25)" : "var(--border)",
+                  background: theme === val ? "rgba(79,142,247,0.08)" : "var(--surface2)",
+                  color: theme === val ? "#4f8ef7" : "var(--muted)",
+                }}>
+                {label}
+              </motion.button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Save */}
-        <div style={{textAlign:"center",marginBottom:16}}>
-          <button onClick={save} className="btn-glow" style={{padding:"13px 48px",borderRadius:12,border:"none",cursor:"pointer",fontSize:15,fontWeight:700,letterSpacing:".2px",background:saved?"linear-gradient(135deg,#34d399,#22c55e)":"linear-gradient(135deg,#4f8ef7,#a78bfa)",color:"#fff",boxShadow:"0 4px 20px #4f8ef730",transition:"all .3s"}}>
-            {saved?"✓ Saved!":"Save Preferences"}
-          </button>
-        </div>
+        <motion.div variants={fadeUp} className="text-center mb-4">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={save}
+            className="px-12 py-3.5 rounded-xl border-none cursor-pointer text-[15px] font-bold tracking-wide text-white transition-all duration-300"
+            style={{
+              background: saved ? "linear-gradient(135deg,#34d399,#22c55e)" : "linear-gradient(135deg,#4f8ef7,#a78bfa)",
+              boxShadow: "0 4px 20px rgba(79,142,247,0.19)",
+            }}>
+            <AnimatePresence mode="wait">
+              <motion.span key={saved ? "saved" : "save"} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}>
+                {saved ? "\u2713 Saved!" : "Save Preferences"}
+              </motion.span>
+            </AnimatePresence>
+          </motion.button>
+        </motion.div>
 
         {/* About */}
-        <div className="fu2" style={card}>
-          <p style={lbl}>About</p>
-          <div style={{display:"flex",flexDirection:"column"}}>
+        <motion.div variants={fadeUp} className="card rounded-2xl p-5">
+          <p className="label mb-4">About</p>
+          <div className="flex flex-col">
             {[
-              ["Platform",   "BharatLearn Dev Coach v2.0"],
-              ["AI Model",   "Groq · Llama 3.1 · Mixtral 8x7B"],
-              ["Backend",    "Node.js · Express · Passport · Helmet"],
-              ["Features",   "Home · Dashboard · Syllabus · Debug · Quiz · Viva"],
-              ["Security",   "Helmet · CORS · Rate Limiting · OWASP"],
-              ["Built with", "Next.js 14 · TypeScript · Tailwind CSS"],
-            ].map(([k,v])=>(
-              <div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
-                <span style={{fontSize:12,color:"var(--muted)",fontWeight:600}}>{k}</span>
-                <span style={{fontSize:12,color:"var(--text)",textAlign:"right",flex:1,marginLeft:24}}>{v}</span>
+              ["Platform", "BharatLearn Dev Coach v2.0"],
+              ["AI Model", "Groq \u00B7 Llama 3.1 \u00B7 Mixtral 8x7B"],
+              ["Backend", "Node.js \u00B7 Express \u00B7 Passport \u00B7 Helmet"],
+              ["Features", "Home \u00B7 Dashboard \u00B7 Syllabus \u00B7 Debug \u00B7 Quiz \u00B7 Viva"],
+              ["Security", "Helmet \u00B7 CORS \u00B7 Rate Limiting \u00B7 OWASP"],
+              ["Built with", "Next.js 14 \u00B7 TypeScript \u00B7 Tailwind CSS"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between items-center py-2.5 border-b border-[var(--border)] last:border-b-0">
+                <span className="text-xs text-[var(--muted)] font-semibold">{k}</span>
+                <span className="text-xs text-[var(--text)] text-right flex-1 ml-6">{v}</span>
               </div>
             ))}
           </div>
-          <div style={{display:"flex",justifyContent:"center",marginTop:18,gap:8,flexWrap:"wrap"}}>
-            {["Next.js 14","TypeScript","Groq AI","Tailwind","Express"].map(t=>(
-              <span key={t} style={{fontSize:10,padding:"3px 10px",borderRadius:20,background:"var(--surface2)",border:"1px solid var(--border)",color:"var(--muted)",fontWeight:600}}>{t}</span>
+          <div className="flex justify-center mt-4 gap-2 flex-wrap">
+            {["Next.js 14", "TypeScript", "Groq AI", "Tailwind", "Express"].map((t) => (
+              <span key={t} className="tag">{t}</span>
             ))}
           </div>
-        </div>
-
-      </div>
+        </motion.div>
+      </motion.div>
 
       <style>{`
         .wheel-and-hamster{--dur:1s;position:relative;width:10em;height:10em;font-size:14px}
