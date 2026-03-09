@@ -1,10 +1,12 @@
 // Framer Motion animation variants used across all pages
 
+const ease: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
 export const fadeUp = {
   hidden: { opacity: 0, y: 14 },
   visible: (i: number = 0) => ({
     opacity: 1, y: 0,
-    transition: { delay: i * 0.06, duration: 0.4, ease: [0.22, 1, 0.36, 1] },
+    transition: { delay: i * 0.06, duration: 0.4, ease },
   }),
 };
 
@@ -15,12 +17,12 @@ export const fadeIn = {
 
 export const scaleIn = {
   hidden: { opacity: 0, scale: 0.95 },
-  visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.3, ease } },
 };
 
 export const slideIn = {
   hidden: { opacity: 0, x: -10 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, x: 0, transition: { duration: 0.35, ease } },
 };
 
 export const stagger = {
@@ -35,7 +37,7 @@ export const pageTransition = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1, y: 0,
-    transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1], staggerChildren: 0.08 },
+    transition: { duration: 0.5, ease, staggerChildren: 0.08 },
   },
   exit: { opacity: 0, y: -10, transition: { duration: 0.2 } },
 };
